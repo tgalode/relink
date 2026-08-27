@@ -55,7 +55,7 @@ Le transport du bloc en dépend : `0xFE` est l'octet « pas de câble » du port
   - `pub fn build(party: &mut [u8; PARTY_DATA_LEN]) -> [u8; PATCH_LIST_LEN];`
   - `pub fn apply(party: &mut [u8; PARTY_DATA_LEN], list: &[u8; PATCH_LIST_LEN]);`
 
-- [ ] **Step 1: Écrire les tests qui échouent**
+- [x] **Step 1: Écrire les tests qui échouent**
 
 Dans `crates/protocol/tests/gen1_patch_list.rs` :
 
@@ -173,12 +173,12 @@ fn une_liste_recue_absurde_ne_casse_rien() {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests pour les voir échouer**
+- [x] **Step 2: Lancer les tests pour les voir échouer**
 
 Run: `cargo test -p relink-protocol --test gen1_patch_list`
 Expected: échec de compilation, `patch_list` n'existe pas.
 
-- [ ] **Step 3: Écrire le codec**
+- [x] **Step 3: Écrire le codec**
 
 Dans `crates/protocol/src/gen1/patch_list.rs` :
 
@@ -291,12 +291,12 @@ Dans `crates/protocol/src/gen1/mod.rs`, exposer le module :
 pub mod patch_list;
 ```
 
-- [ ] **Step 4: Lancer les tests**
+- [x] **Step 4: Lancer les tests**
 
 Run: `cargo test -p relink-protocol --test gen1_patch_list`
 Expected: les sept tests passent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates/protocol/src/gen1/patch_list.rs crates/protocol/src/gen1/mod.rs crates/protocol/tests/gen1_patch_list.rs
@@ -326,7 +326,7 @@ La session, ses tampons, son aiguillage, et les trois premières phases : négoc
   - `pub(crate) enum Phase` avec les variants `Negotiating`, `Menu`, `Waiting`, `Preamble`, `Seed`, `Block`, `PatchHeader`, `PatchList`, `Select`, `Verdict`, `Trading`, `Broken`.
   - Dans `tests/util/mod.rs` : `pub fn feed(session: &mut Session, bytes: &[u8]) -> Vec<u8>`, `pub fn effects(session: &mut Session, bytes: &[u8]) -> Vec<Effect>`, `pub fn bloc_fixture(marqueur: u8) -> TradeBlock`.
 
-- [ ] **Step 1: Écrire les tests qui échouent**
+- [x] **Step 1: Écrire les tests qui échouent**
 
 Dans `crates/protocol/tests/util/mod.rs` :
 
@@ -459,12 +459,12 @@ fn une_negociation_qui_repart_est_suivie() {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests pour les voir échouer**
+- [x] **Step 2: Lancer les tests pour les voir échouer**
 
 Run: `cargo test -p relink-protocol --test session_link`
 Expected: échec de compilation, `session` n'existe pas.
 
-- [ ] **Step 3: Écrire la session et les phases de lien**
+- [x] **Step 3: Écrire la session et les phases de lien**
 
 Dans `crates/protocol/src/session/mod.rs` :
 
@@ -807,12 +807,12 @@ impl Session {
 
 Dans `crates/protocol/src/lib.rs`, déclarer le module : `pub mod session;`
 
-- [ ] **Step 4: Lancer les tests**
+- [x] **Step 4: Lancer les tests**
 
 Run: `cargo test -p relink-protocol --test session_link`
 Expected: les huit tests passent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates/protocol/src/session/ crates/protocol/src/lib.rs crates/protocol/tests/session_link.rs crates/protocol/tests/util/
@@ -834,7 +834,7 @@ Préambule, graine aléatoire, bloc d'échange, patch list. C'est la partie où 
 - Consumes: `Session`, `Phase`, `Effect`, `Step` de la tâche 2 ; `patch_list::apply` de la tâche 1.
 - Produces: dans `tests/util/mod.rs`, `pub fn jusqu_a_la_table(session: &mut Session)` — amène une session fraîche jusqu'au premier octet de préambule inclus.
 
-- [ ] **Step 1: Écrire les tests qui échouent**
+- [x] **Step 1: Écrire les tests qui échouent**
 
 Ajouter à `crates/protocol/tests/util/mod.rs` :
 
@@ -1015,12 +1015,12 @@ fn un_nouveau_preambule_relance_le_transfert() {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests pour les voir échouer**
+- [x] **Step 2: Lancer les tests pour les voir échouer**
 
 Run: `cargo test -p relink-protocol --test session_transfer`
 Expected: échec — les phases de transfert présentent l'octet neutre et n'avancent pas.
 
-- [ ] **Step 3: Écrire les phases de transfert**
+- [x] **Step 3: Écrire les phases de transfert**
 
 Remplacer `crates/protocol/src/session/transfer.rs` :
 
@@ -1151,12 +1151,12 @@ impl Session {
 
 Note pour l'implémenteur : l'octet de leader n'est **pas** traité dans ces phases, et c'est délibéré. Le bloc, la graine et la patch list transportent des octets arbitraires — `0x01` y est une donnée, pas une demande de renégociation. La règle de renégociation ne vaut que dans les phases de synchronisation, et la conséquence est assumée : une cartouche qui redémarre en plein transfert laisse la session bloquée. `protocol` ne connaît pas le temps et ne peut pas s'en sortir seul ; c'est au firmware, qui a une horloge, de détruire la session et d'en ouvrir une neuve. Le test de l'étape 1 fige ce comportement pour qu'il reste une décision et non un accident.
 
-- [ ] **Step 4: Lancer les tests**
+- [x] **Step 4: Lancer les tests**
 
 Run: `cargo test -p relink-protocol --test session_transfer`
 Expected: les six tests passent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates/protocol/src/session/transfer.rs crates/protocol/tests/session_transfer.rs crates/protocol/tests/util/mod.rs
@@ -1178,7 +1178,7 @@ Les deux points d'attente du §5.2 de la conception mère, et la seule chose qui
 - Consumes: tout ce que les tâches 2 et 3 produisent.
 - Produces: dans `tests/util/mod.rs`, `pub fn jusqu_a_la_selection(session: &mut Session, partenaire: TradeBlock)` — amène une session jusqu'à la phase de sélection, bloc du partenaire échangé.
 
-- [ ] **Step 1: Écrire les tests qui échouent**
+- [x] **Step 1: Écrire les tests qui échouent**
 
 Ajouter à `crates/protocol/tests/util/mod.rs` :
 
@@ -1344,12 +1344,12 @@ fn un_index_absurde_est_borne() {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests pour les voir échouer**
+- [x] **Step 2: Lancer les tests pour les voir échouer**
 
 Run: `cargo test -p relink-protocol --test session_table`
 Expected: échec — les phases de table présentent l'octet neutre et ne signalent rien.
 
-- [ ] **Step 3: Écrire les phases de table**
+- [x] **Step 3: Écrire les phases de table**
 
 Remplacer `crates/protocol/src/session/table.rs` :
 
@@ -1482,12 +1482,12 @@ Ajouter dans `step_select` le traitement de la sortie demandée par le module : 
         }
 ```
 
-- [ ] **Step 4: Lancer les tests**
+- [x] **Step 4: Lancer les tests**
 
 Run: `cargo test -p relink-protocol --test session_table`
 Expected: les douze tests passent.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates/protocol/src/session/table.rs crates/protocol/tests/session_table.rs crates/protocol/tests/util/mod.rs
@@ -1508,7 +1508,7 @@ Les tâches 2 à 4 vérifient des transitions. Celle-ci vérifie ce qu'aucune d'
 - Consumes: tout ce que les tâches 1 à 4 produisent.
 - Produces: dans `tests/util/mod.rs`, `pub struct Cartouche` avec `pub fn nouvelle(equipe: TradeBlock) -> Self`, `pub fn choisit(&mut self, index: u8)`, `pub fn accepte(&mut self)`, `pub fn octet_suivant(&mut self, recu: u8) -> Option<u8>`.
 
-- [ ] **Step 1: Écrire la cartouche simulée et le test qui échoue**
+- [x] **Step 1: Écrire la cartouche simulée et le test qui échoue**
 
 Ajouter à `crates/protocol/tests/util/mod.rs` :
 
@@ -1688,23 +1688,23 @@ fn une_equipe_rearmee_est_celle_qui_part_au_second_echange() {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests pour les voir échouer**
+- [x] **Step 2: Lancer les tests pour les voir échouer**
 
 Run: `cargo test -p relink-protocol --test session_echange`
 Expected: échec de compilation, `Cartouche` n'existe pas encore ; puis échec des assertions si une transition manque.
 
 **Si un test échoue après l'écriture de la cartouche, c'est un vrai défaut** : le corriger dans la machine à états, jamais dans le test, et jamais en assouplissant la cartouche. Documenter dans le rapport la séquence fautive et pourquoi la correction est la bonne.
 
-- [ ] **Step 3: Corriger ce que le déroulé complet révèle**
+- [x] **Step 3: Corriger ce que le déroulé complet révèle**
 
 Cette tâche n'ajoute pas de code de production a priori : les tâches 2 à 4 doivent suffire. Si ce n'est pas le cas, la correction porte sur la phase concernée dans `src/session/`.
 
-- [ ] **Step 4: Lancer les tests**
+- [x] **Step 4: Lancer les tests**
 
 Run: `cargo test -p relink-protocol`
 Expected: tout passe.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crates/protocol/tests/session_echange.rs crates/protocol/tests/util/mod.rs crates/protocol/src/session/
@@ -1726,7 +1726,7 @@ La propriété qui protège les sauvegardes : quels que soient les octets reçus
 - Consumes: tout ce qui précède.
 - Produces: rien de nouveau.
 
-- [ ] **Step 1: Écrire les propriétés qui échouent**
+- [x] **Step 1: Écrire les propriétés qui échouent**
 
 Ajouter à `crates/protocol/tests/robustesse.rs` :
 
@@ -1792,12 +1792,12 @@ proptest! {
 }
 ```
 
-- [ ] **Step 2: Lancer les tests**
+- [x] **Step 2: Lancer les tests**
 
 Run: `cargo test -p relink-protocol --test robustesse`
 Expected: tout passe. **Si `proptest` trouve un contre-exemple**, il l'écrit dans `crates/protocol/proptest-regressions/`. Corriger la machine à états, jamais le test, et versionner le fichier de régression : il documente un vrai bug.
 
-- [ ] **Step 3: Vérifier que le crate tient toujours sans `std` ni allocateur**
+- [x] **Step 3: Vérifier que le crate tient toujours sans `std` ni allocateur**
 
 ```bash
 cargo build -p relink-protocol --target thumbv7em-none-eabihf
@@ -1805,18 +1805,18 @@ cargo build -p relink-protocol --target thumbv7em-none-eabihf
 
 Expected: succès. C'est la seule preuve que la contrainte `no_std` sans `alloc` est tenue.
 
-- [ ] **Step 4: Mettre à jour l'état annoncé**
+- [x] **Step 4: Mettre à jour l'état annoncé**
 
 Dans `crates/protocol/src/lib.rs`, le module `session` rejoint la liste de ce qui est livré, et la phrase « Ce qui manque encore : la machine à états de l'échange, et les codecs de deuxième génération » ne garde que les codecs Gen 2.
 
 Dans `README.md`, le bloc « État » annonce encore que `crates/application` n'a aucun cas d'usage implémenté, ce qui est faux depuis le lot précédent. Le réécrire : les codecs Gen 1, le cœur métier de `application` et la machine à états de l'échange Gen 1 sont livrés ; restent les codecs Gen 2, le firmware et les adaptateurs.
 
-- [ ] **Step 5: Vérification complète**
+- [x] **Step 5: Vérification complète**
 
 Run: `cargo test --workspace`, `cargo clippy --workspace --all-targets`, `cargo fmt --all --check`, `cargo doc --workspace --no-deps`
 Expected: tout passe, aucun avertissement.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add crates/protocol/tests/robustesse.rs crates/protocol/src/lib.rs README.md crates/protocol/proptest-regressions/ 2>/dev/null || git add crates/protocol/tests/robustesse.rs crates/protocol/src/lib.rs README.md
