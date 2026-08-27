@@ -20,6 +20,7 @@
 - Les tests vivent dans `crates/application/tests/` et n'utilisent que l'API publique. Un `//!` de documentation en tête est nécessaire.
 - **Arbitrage de la spec §7.1, non négociable : en cas d'ambiguïté, on choisit la perte.** Une entrée dont on ne sait pas si la cartouche l'a reçue reste consommée. Aucun code de ce lot ne doit pouvoir rendre au pool une entrée dont un commit a été tenté.
 - **Spec §7.2 : le TTL ne protège que contre une réservation qui n'est jamais parvenue à un module.** Une entrée dont un module a accusé réception ne revient **jamais** automatiquement au pool, même très longtemps après son échéance — seul le module peut la trancher. Un module hors ligne ayant déjà remis le Pokémon à la cartouche est indiscernable d'un module qui n'a rien reçu : rendre l'entrée au pool dans le doute produirait une duplication.
+- **Spec §7.4 : qui agit le premier émet l'identifiant.** Au retrait c'est le serveur, au dépôt c'est le **module** — la cartouche a déjà cédé le Pokémon quand le serveur en apprend l'existence. Un dépôt porte donc une clé d'idempotence venue du module, rejouée inchangée, et le serveur déduplique dessus. Un identifiant frappé côté serveur est neuf à chaque tentative et ne peut pas jouer ce rôle.
 - **Spec §7.3 : il n'existe aucun chemin de commit à deux cartouches.** L'échange direct est un dépôt et un retrait appariés, rien d'autre.
 
 ## Un écart de méthode, déclaré
@@ -196,7 +197,7 @@ git commit -m "feat(protocol): éligibilité Capsule Temporelle au niveau de l'�
 - Produces, tous depuis `relink_application::domain` :
   - `pub struct Timestamp(u64)` avec `from_millis`, `as_millis`, `saturating_add_millis`
   - `pub struct TrainerId { pub name: gen1::Name, pub number: u16 }`
-  - `pub struct EntryId(u128)` et `pub struct ReservationId(u128)`, chacun avec `from_u128` et `as_u128`
+  - `pub struct EntryId(u128)`, `pub struct ReservationId(u128)` et `pub struct DepositId(u128)`, chacun avec `from_u128` et `as_u128`
   - `pub struct Provenance { pub depositor: TrainerId, pub deposited_at: Timestamp, pub previous: Vec<TrainerId> }`
   - `pub struct Pokemon { pub bytes: [u8; gen1::PARTY_POKEMON_LEN], pub nickname: gen1::Name, pub original_trainer: gen1::Name }`
   - `pub enum EntryState { Available, Reserved { reservation: ReservationId, expires_at: Timestamp }, Committed { reservation: ReservationId, at: Timestamp }, Abandoned { reservation: ReservationId, at: Timestamp } }`
@@ -238,6 +239,7 @@ fn entry(state: EntryState) -> PoolEntry {
     let name = Name::from_bytes([0x50; NAME_LEN]);
     PoolEntry {
         id: EntryId::from_u128(1),
+        deposit: relink_application::domain::DepositId::from_u128(1),
         pokemon: Pokemon {
             bytes: [0u8; PARTY_POKEMON_LEN],
             nickname: name,
@@ -343,6 +345,32 @@ pub struct EntryId(u128);
 
 impl EntryId {
     /// Construit un identifiant.
+    #[must_use]
+    pub const fn from_u128(value: u128) -> Self {
+        Self(value)
+    }
+    /// La valeur sous-jacente.
+    #[must_use]
+    pub const fn as_u128(self) -> u128 {
+        self.0
+    }
+}
+
+/// Clé d'idempotence d'un dépôt, **émise par le module**.
+///
+/// Le module l'écrit dans son journal en même temps qu'il constate que la
+/// cartouche a cédé le Pokémon, et la rejoue inchangée à chaque tentative. Le
+/// serveur déduplique dessus : un dépôt rejoué dix fois produit une entrée et
+/// une seule.
+///
+/// Elle ne peut pas être frappée côté serveur — elle serait neuve à chaque
+/// tentative, ce qui est exactement ce qui rendait le rejeu dangereux
+/// (spec §7.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct DepositId(u128);
+
+impl DepositId {
+    /// Construit une clé d'idempotence de dépôt.
     #[must_use]
     pub const fn from_u128(value: u128) -> Self {
         Self(value)
@@ -464,6 +492,8 @@ impl EntryState {
 pub struct PoolEntry {
     /// Son identifiant.
     pub id: EntryId,
+    /// La clé d'idempotence du dépôt qui l'a créée (spec §7.4).
+    pub deposit: DepositId,
     /// Le Pokémon lui-même.
     pub pokemon: Pokemon,
     /// D'où il vient.
@@ -632,7 +662,15 @@ pub trait IdSource {
 /// la tâche 4 vérifient qu'il ne le tente pas.
 pub trait PoolRepository {
     /// Ajoute une entrée disponible au pool.
-    async fn insert(&self, entry: PoolEntry) -> Result<(), PortError>;
+    ///
+    /// **Idempotente par [`crate::domain::DepositId`].** Un dépôt est un
+    /// transfert physique irréversible, et le module le rejoue comme il rejoue
+    /// un commit. Si une entrée portant déjà cette clé de dépôt existe, cette
+    /// opération **ne crée pas de doublon**, ne modifie rien, et rend
+    /// l'identifiant de l'entrée déjà présente. Sans cela, un acquittement
+    /// perdu suffit à créer deux entrées réservables pour un seul Pokémon
+    /// physique (spec §7.4).
+    async fn insert(&self, entry: PoolEntry) -> Result<EntryId, PortError>;
 
     /// L'entrée portant cet identifiant, si elle existe.
     async fn get(&self, id: EntryId) -> Result<Option<PoolEntry>, PortError>;
@@ -963,7 +1001,7 @@ git commit -m "feat(application): doublures en mémoire respectant les contrats 
 - Test: `crates/application/tests/deposit.rs`
 
 **Interfaces:**
-- Produces : `pub struct deposit::Deposit<R, L, C, I>` avec `new(pool, legality, clock, ids)` et `async fn execute(&self, request: DepositRequest) -> Result<EntryId, DepositError>`, `pub struct DepositRequest { pub depositor: TrainerId, pub pokemon: Pokemon }`, `pub enum DepositError { Illegal, Ineligible(usize), Port(PortError) }`
+- Produces : `pub struct deposit::Deposit<R, L, C, I>` avec `new(pool, legality, clock, ids)` et `async fn execute(&self, request: DepositRequest) -> Result<EntryId, DepositError>`, `pub struct DepositRequest { pub deposit: DepositId, pub depositor: TrainerId, pub pokemon: Pokemon }`, `pub enum DepositError { Illegal, Ineligible(usize), Port(PortError) }`
 
 - [ ] **Step 1: Écrire le test qui échoue**
 
@@ -984,6 +1022,7 @@ use util::{some_name, some_pokemon};
 fn request() -> DepositRequest {
     use relink_application::domain::TrainerId;
     DepositRequest {
+        deposit: relink_application::domain::DepositId::from_u128(77),
         depositor: TrainerId { name: some_name(), number: 1234 },
         pokemon: some_pokemon(),
     }
@@ -1028,12 +1067,28 @@ fn une_panne_du_stockage_remonte_sans_perdre_le_pokemon() {
 }
 
 #[test]
+fn rejouer_le_meme_depot_ne_cree_pas_de_doublon() {
+    // Spec §7.4 : l'acquittement s'est perdu, le module rejoue son journal.
+    // La cartouche n'a cédé qu'un seul Pokémon ; il ne doit y en avoir qu'un.
+    let pool = InMemoryPool::new();
+    let uc = Deposit::new(&pool, StubLegality::accepting(), FixedClock::new(Timestamp::from_millis(0)), SequentialIds::new());
+
+    let first = block_on(uc.execute(request())).expect("premier");
+    let replay = block_on(uc.execute(request())).expect("rejeu");
+
+    assert_eq!(first, replay, "le rejeu doit rendre la même entrée");
+    assert_eq!(pool.len(), 1, "un seul Pokémon physique, une seule entrée");
+}
+
+#[test]
 fn deux_depots_recoivent_des_identifiants_distincts() {
     let pool = InMemoryPool::new();
     let uc = Deposit::new(&pool, StubLegality::accepting(), FixedClock::new(Timestamp::from_millis(0)), SequentialIds::new());
 
+    let mut second = request();
+    second.deposit = relink_application::domain::DepositId::from_u128(78);
     let a = block_on(uc.execute(request())).expect("premier");
-    let b = block_on(uc.execute(request())).expect("second");
+    let b = block_on(uc.execute(second)).expect("second");
     assert_ne!(a, b);
     assert_eq!(pool.len(), 2);
 }
@@ -1733,7 +1788,7 @@ use pollster::block_on;
 use relink_application::commit::{Commit, CommitVerdict};
 use relink_application::domain::{EntryId, EntryState, ReservationId, Timestamp};
 use relink_application::expiry::ExpireReservations;
-use relink_application::ports::PoolRepository;
+use relink_application::ports::{CommitOutcome, PoolRepository};
 use relink_application::testing::{FixedClock, InMemoryPool};
 
 mod util;
@@ -1794,8 +1849,12 @@ fn replay(sequence: &[Event]) {
     for event in sequence {
         match event {
             Event::ModuleAcknowledged => {
-                block_on(pool.record_delivery(res)).expect("accusé de réception");
-                world.module_acknowledged = true;
+                // Le verdict est une **autorisation**, pas une trace. `Unknown`
+                // veut dire que la réservation ne tient plus d'entrée — elle a
+                // expiré et quelqu'un d'autre l'a prise. Le module doit alors
+                // détruire ce qu'il détient sans rien donner à la cartouche.
+                let verdict = block_on(pool.record_delivery(res)).expect("accusé de réception");
+                world.module_acknowledged = verdict != CommitOutcome::Unknown;
             }
             // Une cartouche ne peut recevoir que d'un module qui a reçu la
             // réservation. Le modèle doit refléter cette dépendance, sinon il

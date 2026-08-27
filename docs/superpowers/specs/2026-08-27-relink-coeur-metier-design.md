@@ -288,6 +288,40 @@ deux cartouches dans le code. `application` ne connaît qu'un seul use case de
 commit, celui du §7, et l'échange direct se réduit à un dépôt et un retrait
 liés par un appariement.
 
+### 7.4 L'autre direction : le dépôt
+
+**Ajouté le 2026-08-27, après relecture adversariale des contrats de ports.**
+Tout ce qui précède protège la direction **retrait** : identifiant émis avant
+que quoi que ce soit ne parte, journal d'intention côté module, déduplication
+par cet identifiant. La direction **dépôt** n'était protégée par rien — alors
+que la cartouche y perd le Pokémon tout aussi irréversiblement.
+
+Le scénario, sans aucune faute d'implémentation :
+
+1. La cartouche cède le Mew. L'animation est passée, la sauvegarde ne l'a plus.
+2. Le module journalise et publie le dépôt.
+3. Le serveur crée l'entrée et la commite en base. **L'acquittement se perd.**
+4. Le module rejoue son journal, exactement comme il rejoue un commit.
+5. Le serveur crée une **seconde** entrée, avec un identifiant neuf.
+6. Deux joueurs les réservent. Deux cartouches reçoivent le Mew. Duplication.
+
+**La règle : qui agit le premier émet l'identifiant.**
+
+C'est la formulation générale dont le §7 point 1 n'était qu'un cas particulier.
+Au retrait, c'est le serveur qui agit le premier — il réserve avant que rien ne
+parte — donc c'est lui qui émet l'identifiant. Au dépôt, c'est le **module**
+qui agit le premier : la cartouche a déjà cédé le Pokémon quand le serveur
+apprend son existence. C'est donc au module d'émettre l'identifiant, en même
+temps qu'il écrit son entrée de journal, et de le rejouer inchangé à chaque
+tentative.
+
+Le serveur déduplique dessus. Un dépôt rejoué dix fois produit une entrée et
+une seule, et rend la même que la première fois.
+
+Un identifiant frappé côté serveur ne peut pas jouer ce rôle : par
+construction, il est neuf à chaque tentative. C'est précisément ce qui rendait
+le rejeu dangereux.
+
 ## 8. Tests
 
 Tout se teste sans matériel. C'est l'intérêt principal de la découpe.
