@@ -21,7 +21,13 @@
 //!
 //! Le module [`reserve`] porte le cas d'usage de réservation : sortir un
 //! Pokémon du pool et le pousser vers le module physique d'un joueur.
+//!
+//! Le module [`commit`] porte le cas d'usage de commit : trancher une
+//! réservation, une fois pour toutes. C'est le seul endroit du service où
+//! l'on peut détruire des données irremplaçables — voir la documentation du
+//! module avant d'y toucher.
 
+pub mod commit;
 pub mod deposit;
 pub mod domain;
 pub mod ports;
