@@ -4,3 +4,5 @@ Cargo.lock
 .DS_Store
 /.superpowers/
 __pycache__/
+/.impeccable/hook.cache.json
+/.impeccable/config.local.json
