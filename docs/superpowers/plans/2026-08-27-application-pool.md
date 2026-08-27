@@ -1352,7 +1352,7 @@ Le cœur de la spec §7. Un module rejoue son journal à la reconnexion, et MQTT
 //! Le commit, seul endroit du service où l'on peut détruire des données.
 
 use pollster::block_on;
-use relink_application::commit::Commit;
+use relink_application::commit::{Commit, CommitVerdict};
 use relink_application::domain::{EntryId, ReservationId, Timestamp};
 use relink_application::ports::PoolRepository;
 use relink_application::testing::{FixedClock, InMemoryPool, SequentialIds};
@@ -1948,13 +1948,19 @@ fn replay(sequence: &[Event]) {
                     // après une expiration la réservation ne tient plus d'entrée.
                     // Ne resserre pas cette assertion — c'est l'invariant qui juge,
                     // pas le harnais, et ce cas est précisément le plus intéressant.
-                    block_on(commit.confirm(res)).expect("commit");
-                    world.ever_settled = true;
+                    let verdict = block_on(commit.confirm(res)).expect("commit");
+                    world.ever_settled |= verdict != CommitVerdict::Unknown;
                 }
             }
             Event::Abandoned => {
-                block_on(commit.abandon(res)).expect("abandon");
-                world.ever_settled = true;
+                // Gardé par le verdict, symétriquement à `ModuleAcknowledged` :
+                // `Unknown` signifie que la réservation ne tient plus d'entrée —
+                // elle a expiré — et que rien n'a donc été tranché. Poser
+                // `ever_settled` sur la simple tentative enregistrerait un
+                // tranchage qui n'a pas eu lieu, et le corollaire deviendrait
+                // faux sur toute séquence où une expiration précède un abandon.
+                let verdict = block_on(commit.abandon(res)).expect("abandon");
+                world.ever_settled |= verdict != CommitVerdict::Unknown;
             }
             Event::TtlElapsed => {
                 clock.set(Timestamp::from_millis(2_000));
