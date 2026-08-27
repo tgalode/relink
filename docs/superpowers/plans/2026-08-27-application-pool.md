@@ -517,7 +517,7 @@ Les traits, et surtout **leurs contrats**. Une signature ne suffit pas : le comm
 - Produces, depuis `relink_application::ports` :
   - `pub trait Clock { async fn now(&self) -> Timestamp; }`
   - `pub trait IdSource { async fn next_entry_id(&self) -> EntryId; async fn next_reservation_id(&self) -> ReservationId; }`
-  - `pub trait PoolRepository` avec `insert`, `get`, `list_claimable`, `claim`, `record_commit`, `record_abandon`, `expire_due`
+  - `pub trait PoolRepository` avec `insert`, `get`, `list_claimable`, `claim`, `record_commit`, `record_abandon`, `record_delivery`, `expire_due`
   - `pub trait LegalityChecker { async fn is_legal(&self, pokemon: &Pokemon) -> Result<bool, PortError>; }`
   - `pub trait ModuleTransport { async fn push_reservation(&self, module: ModuleId, reservation: ReservationId, pokemon: &Pokemon) -> Result<(), PortError>; }`
   - `pub trait Notifier { async fn entry_claimed(&self, depositor: &TrainerId, entry: EntryId) -> Result<(), PortError>; }`
