@@ -11,19 +11,42 @@ plan initial la place en tâche 5 — elle repose sur exactement le même
 travail de sourçage que le reste de ce document, et rien dans les tâches 2
 à 6 ne peut être vérifié sans elle.
 
+**Récapitulatif de confiance** : 2 entrées dans ce document — la table des
+151 espèces est **confirmée** (2 sources indépendantes convergent sur les
+151 paires index/espèce, vérifié par script, 0 écart) ; la liste des index
+inutilisés reste **probable** (source unique explicitement nommée).
+0 hypothèse.
+
 ## Source
 
 - **Ce que c'est** — correspondance complète entre l'index interne d'une
   espèce (tel que stocké dans le bloc d'échange) et son numéro national.
-- **Source** — Bulbapedia, [« List of Pokémon by index number in
+- **Source 1** — Bulbapedia, [« List of Pokémon by index number in
   Generation I »](https://bulbapedia.bulbagarden.net/wiki/List_of_Pok%C3%A9mon_by_index_number_in_Generation_I),
   section « List of Pokémon by index number », table complète des 190
   index non-nuls (1 à 190) avec leur numéro national. Article de référence
   communautaire, aucun désassemblage cité.
-- **Confiance** — confirmée. La table extraite couvre exactement les 151
-  numéros nationaux de 1 à 151 une seule fois chacun (vérifié par script à
-  partir du wikitexte de la page), ce qui correspond à l'invariant que le
-  code de la tâche 5 doit vérifier.
+- **Source 2** — kbembedded, [« Flipper-Zero-Game-Boy-Pokemon-Trading »](https://github.com/kbembedded/Flipper-Zero-Game-Boy-Pokemon-Trading),
+  fichier `src/pokemon_table.c` : table statique `pokemon_table[]`, un
+  champ `index` par espèce (« Values for base_*, moves, etc., pulled
+  directly from a copy of Pokemon Blue »), utilisée par une application
+  qui échange réellement des Pokémon avec une cartouche physique par câble
+  link. Réimplémentation indépendante de Bulbapedia : structure de données
+  et projet distincts, avec sa propre vérification sur matériel.
+- **Recoupement** — les 151 premières entrées de la table `pokemon_table[]`
+  (ordre Pokédex national, vérifié par leur position) ont été extraites par
+  script et comparées une à une à la table Bulbapedia ci-dessous, par
+  numéro national : **0 écart sur 151** — chaque paire (numéro national,
+  index interne) est identique dans les deux sources, y compris pour
+  Bulbizarre (`0x99`) et Mew (`0x15`), qui sont précisément les deux
+  valeurs que le plan original inversait (voir section suivante). C'est
+  cette seconde source qui a permis de confirmer, plutôt que simplement
+  supposer, que la correction apportée au plan est correcte.
+- **Confiance** — confirmée. Complétude et absence de doublon vérifiées par
+  script sur la table Bulbapedia seule (151 numéros nationaux couverts une
+  fois chacun) ; exactitude individuelle de chaque paire vérifiée par
+  recoupement automatisé avec la table Flipper-Zero-Game-Boy-Pokemon-Trading
+  (0 écart).
 
 ## Divergence trouvée avec le plan
 
@@ -224,13 +247,17 @@ le rapport de tâche pour le détail des lignes modifiées.
   255 (hex 0xFF) contain all other glitch Pokémon in Generation I. » pour
   les deux plages hors table ; les 39 index à l'intérieur de la table
   portent explicitement le nom « MissingNo. » avec un numéro national de
-  0 (absence de correspondance).
-- **Confiance** — confirmée pour les 40 index listés individuellement
-  (`0x00` et les 39 de la plage 1–190) ; confirmée mais non détaillée
-  individuellement pour la plage `0xBF`–`0xFF` (la source affirme
-  collectivement qu'elle ne contient aucune des 151 espèces, sans
-  distinguer les 65 index un par un — suffisant pour l'usage de ce projet,
-  qui n'a besoin que de savoir qu'aucun ne traduit une espèce valide).
+  0 (absence de correspondance). C'est la seule source trouvée qui
+  positionne explicitement ces 105 index comme inutilisés — contrairement
+  à la table des 151 espèces valides ci-dessus, kbembedded/Flipper-Zero-Game-Boy-Pokemon-Trading
+  n'affirme rien sur ces index : son propre relevé n'utilise jamais aucun
+  d'entre eux comme index d'une espèce Gen 1 (cohérent avec le fait qu'ils
+  sont inutilisés), mais une absence de contradiction n'est pas une
+  confirmation positive et indépendante.
+- **Confiance** — probable (source unique nommée : Bulbapedia), pour
+  l'ensemble des 105 index — les 40 listés individuellement (`0x00` et les
+  39 de la plage 1–190) comme la plage `0xBF`–`0xFF` non détaillée
+  individuellement par la source.
 
 L'index `0x1F`, cité par le plan comme exemple d'index inutilisé, est bien
 confirmé inutilisé par cette table — c'est la seule des trois affirmations
