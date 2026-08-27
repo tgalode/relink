@@ -111,6 +111,16 @@ pub trait Clock {
 }
 
 /// La source des identifiants. Le domaine ne tire jamais d'aléa lui-même.
+///
+/// « Jamais rendu » vaut **globalement et sans limite de temps, redémarrages
+/// compris** — un compteur tenu en mémoire de processus ne suffit pas. La
+/// fenêtre de rejeu d'un module n'est pas bornée (spec §7.2) : un `EntryId`
+/// refrappé après un redémarrage fait pointer le rejeu d'un vieux dépôt vers
+/// le Pokémon de quelqu'un d'autre ; une `ReservationId` réémise fait qu'un
+/// [`PoolRepository::record_commit`] rejoué consomme l'entrée d'un joueur qui
+/// n'a rien reçu. Aucun des deux ne duplique, mais les deux détruisent en
+/// silence — sans la visibilité que l'arbitrage « on choisit la perte » du
+/// §7.1 suppose.
 pub trait IdSource {
     /// Un identifiant d'entrée qui n'a jamais été rendu.
     ///
@@ -128,10 +138,18 @@ pub trait IdSource {
 ///
 /// # Garanties exigées de tout adaptateur
 ///
-/// Cinq opérations doivent être **atomiques**, c'est-à-dire indivisibles
+/// Six opérations doivent être **atomiques**, c'est-à-dire indivisibles
 /// vis-à-vis de tout appel concurrent. Sans elles, deux joueurs peuvent
-/// réserver la même entrée, ou un rejeu de message peut commiter deux fois :
+/// réserver la même entrée, ou un rejeu de message peut commiter — ou
+/// déposer — deux fois :
 ///
+/// - [`Self::insert`] doit vérifier la clé de dépôt **et** créer l'entrée en
+///   une seule opération. Un adaptateur qui lirait puis écrirait séparément
+///   serait faux : deux rejeux du même dépôt traités en parallèle — deux
+///   répliques sur la même souscription, ou deux fils traitant deux copies
+///   redélivrées — créeraient deux entrées pour un seul Pokémon physique. En
+///   SQL, c'est l'index unique sur la clé de dépôt qui porte la garantie, pas
+///   un `SELECT` préalable.
 /// - [`Self::claim`] doit vérifier la disponibilité **et** poser la réservation
 ///   en une seule opération. Un adaptateur qui lirait puis écrirait
 ///   séparément serait faux.
@@ -188,39 +206,56 @@ pub trait PoolRepository {
     /// Ajoute une entrée disponible au pool, et rend l'identifiant sous
     /// lequel elle vit réellement.
     ///
-    /// **Idempotente par [`crate::domain::DepositId`].** Un dépôt est un
-    /// transfert physique irréversible, et le module le rejoue comme il rejoue
-    /// un commit. Si une entrée portant déjà cette clé de dépôt existe, cette
-    /// opération **ne crée pas de doublon**, ne modifie rien, et rend
-    /// l'identifiant de l'entrée déjà présente — pas celui porté par `entry`.
-    /// C'est l'identifiant rendu qui **fait foi** ; l'appelant abandonne celui
-    /// qu'il avait frappé via [`IdSource::next_entry_id`] si ce n'est pas le
-    /// même (voir la doc de cette méthode). Un implémenteur qui ignorerait la
-    /// valeur de retour et réutiliserait l'identifiant frappé compilerait mais
-    /// serait faux sur le chemin de rejeu.
+    /// **Atomique et idempotente par [`crate::domain::DepositId`].** Un dépôt
+    /// est un transfert physique irréversible, et le module le rejoue comme il
+    /// rejoue un commit. Vérifier la clé de dépôt et créer l'entrée doit être
+    /// **une seule opération, indivisible vis-à-vis de tout appel
+    /// concurrent** — un adaptateur qui lirait puis écrirait séparément serait
+    /// faux : deux rejeux du même dépôt traités en parallèle (deux répliques
+    /// du serveur sur la même souscription MQTT, ou deux fils traitant deux
+    /// copies redélivrées) créeraient deux entrées réservables pour un seul
+    /// Pokémon physique. En SQL, c'est l'index unique sur la clé de dépôt qui
+    /// porte cette garantie, pas un `SELECT` préalable.
+    ///
+    /// **La condition de déclenchement porte sur le registre, pas sur la
+    /// ligne.** Si cette clé de dépôt **a déjà été enregistrée** — que
+    /// l'entrée correspondante existe encore ou qu'elle ait été purgée depuis
+    /// — cette opération **ne crée pas de doublon**, ne modifie rien, et rend
+    /// l'identifiant déjà enregistré pour cette clé, pas celui porté par
+    /// `entry`. C'est l'identifiant rendu qui **fait foi** ; l'appelant
+    /// abandonne celui qu'il avait frappé via [`IdSource::next_entry_id`] si
+    /// ce n'est pas le même (voir la doc de cette méthode). Un implémenteur
+    /// qui ignorerait la valeur de retour et réutiliserait l'identifiant
+    /// frappé compilerait mais serait faux sur le chemin de rejeu. Plus
+    /// généralement, après un rejeu, toute valeur `PoolEntry` que l'appelant
+    /// détient encore — y compris `entry` lui-même — est périmée : son champ
+    /// `id` ne désigne pas forcément l'entrée réellement stockée. Et si
+    /// l'entrée a été purgée, l'identifiant rendu ne désigne plus rien pour
+    /// [`Self::get`] — c'est cohérent, mais à savoir.
     ///
     /// **La clé ne s'oublie jamais.** La fenêtre de rejeu d'un module n'est pas
     /// bornée — un module peut dormir des mois avant de rejouer son journal
     /// (spec §7.2). Une déduplication adossée à la seule survie de la ligne
     /// serait donc défaite par une politique de rétention ordinaire : purger
     /// ou archiver les entrées tranchées ferait renaître, sous un nouvel
-    /// identifiant, le dépôt d'un Pokémon déjà remis à quelqu'un d'autre. Un
-    /// adaptateur qui purge ou archive doit conserver indéfiniment le registre
-    /// des clés `DepositId → EntryId`, séparément du cycle de vie de l'entrée
-    /// elle-même, pour que cette opération rende le même verdict pour
-    /// toujours. Voir aussi la portée d'unicité de
-    /// [`crate::domain::DepositId`] : cette opération ne peut **pas** détecter
-    /// une collision de clé, qui avalerait silencieusement un dépôt légitime.
+    /// identifiant, le dépôt d'un Pokémon déjà remis à quelqu'un d'autre —
+    /// c'est précisément ce que la condition de déclenchement ci-dessus évite
+    /// en portant sur le registre. Un adaptateur qui purge ou archive doit
+    /// donc conserver indéfiniment le registre des clés `DepositId →
+    /// EntryId`, séparément du cycle de vie de l'entrée elle-même. Voir aussi
+    /// la portée d'unicité de [`crate::domain::DepositId`] : cette opération
+    /// ne peut **pas** détecter une collision de clé, qui avalerait
+    /// silencieusement un dépôt légitime.
     ///
     /// Asymétrie à noter : seule la direction dépôt est critique à cet égard.
     /// [`Self::record_commit`] rejoué après une purge ne retrouve plus sa
     /// réservation et rend [`CommitOutcome::Unknown`] sans rien rendre au
     /// pool — une perte, pas une duplication.
     ///
-    /// Si `entry.id` désigne une entrée déjà présente sous une clé de dépôt
-    /// **différente**, rejette avec [`PortError`] plutôt que d'écraser :
-    /// silencieusement remplacer une entrée déjà tranchée violerait
-    /// l'invariant de ce trait.
+    /// Si `entry.id` désigne une entrée déjà **enregistrée** (existante ou
+    /// purgée) sous une clé de dépôt **différente**, rejette avec
+    /// [`PortError`] plutôt que d'écraser : silencieusement remplacer une
+    /// entrée déjà tranchée violerait l'invariant de ce trait.
     ///
     /// Piège d'implémentation : `INSERT … ON CONFLICT (deposit) DO NOTHING
     /// RETURNING id`, la forme réflexe en Postgres, **ne rend aucune ligne**
@@ -235,13 +270,18 @@ pub trait PoolRepository {
 
     /// Les entrées dont l'état est exactement
     /// [`crate::domain::EntryState::Available`] — les mêmes, et seulement les
-    /// mêmes, que [`Self::claim`] accepterait de réserver à cet instant.
+    /// mêmes, que [`Self::claim`] accepterait de réserver pour une
+    /// **réservation neuve** (voir son paragraphe « Rejeu » : à identifiant de
+    /// réservation identique, `claim` accepte aussi une entrée déjà
+    /// `Reserved` sous cette réservation, ce que cette liste n'inclut pas).
     async fn list_claimable(&self) -> Result<Vec<PoolEntry>, PortError>;
 
-    /// **Atomique.** Réserve l'entrée si et seulement si son état est
+    /// **Atomique.** Réserve l'entrée si son état est
     /// **exactement** [`crate::domain::EntryState::Available`] au moment de
     /// l'appel, et pose alors `Reserved { reservation, expires_at, delivered:
-    /// false }`.
+    /// false }` — ou si elle est déjà `Reserved` sous cette **même**
+    /// `reservation` (rejeu à l'identique, voir « Rejeu » ci-dessous). Jamais
+    /// autrement.
     ///
     /// « Disponible » ne veut rien dire d'autre : une entrée `Reserved` dont
     /// l'échéance est déjà passée n'est **pas** disponible tant que
