@@ -3,7 +3,7 @@
 //! Aucune conversion n'est inventée : les jeux ont déjà tranché, et ces règles
 //! sont les leurs. Sourcées dans `docs/protocol/time-capsule-rules.md`.
 
-use crate::gen1::{PartyPokemon, national_dex_number};
+use crate::gen1::{PartyPokemon, TradeBlock, national_dex_number};
 
 /// Identifiant de la dernière capacité de première génération.
 ///
@@ -73,4 +73,26 @@ pub fn eligible_for_gen1(pokemon: &PartyPokemon) -> Result<(), Ineligible> {
         }
     }
     Ok(())
+}
+
+/// Cherche le premier Pokémon de l'équipe qui ne peut pas descendre vers une
+/// cartouche de première génération, et rend sa position dans l'équipe avec
+/// le motif du refus.
+///
+/// La règle de la Capsule Temporelle porte sur l'équipe entière : il suffit
+/// d'un Pokémon inéligible pour que l'échange soit refusé. Cette fonction rend
+/// le **premier** fautif, celui qu'on montre à l'utilisateur ; elle n'examine
+/// jamais au-delà de l'équipe réellement annoncée.
+///
+/// Rend `None` si toute l'équipe est éligible, équipe vide comprise.
+#[must_use]
+pub fn first_ineligible_in_party(block: &TradeBlock) -> Option<(usize, Ineligible)> {
+    let mut index = 0;
+    while let Some(pokemon) = block.pokemon(index) {
+        if let Err(reason) = eligible_for_gen1(&pokemon) {
+            return Some((index, reason));
+        }
+        index += 1;
+    }
+    None
 }
