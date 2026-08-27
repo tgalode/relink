@@ -68,6 +68,20 @@ impl EntryId {
 /// Elle ne peut pas être frappée côté serveur — elle serait neuve à chaque
 /// tentative, ce qui est exactement ce qui rendait le rejeu dangereux
 /// (spec §7.4).
+///
+/// # Portée d'unicité : globale et pour toujours
+///
+/// La clé doit être unique **tous modules confondus, sans limite de temps** —
+/// pas seulement au sein d'un même module ou d'une même fenêtre de rétention.
+/// Un compteur de journal local partant de 1, l'implémentation réflexe côté
+/// firmware, ferait entrer en collision le premier dépôt de **chaque**
+/// module : le second déposant, parfaitement légitime, verrait son dépôt
+/// silencieusement avalé par [`crate::ports::PoolRepository::insert`], qui ne
+/// peut pas distinguer une collision d'un rejeu légitime — la cartouche ayant
+/// déjà cédé le Pokémon dans les deux cas. Ce n'est pas une duplication (on
+/// choisit toujours la perte, spec §7.1) mais une perte systématique et sans
+/// coupable. La clé doit donc mêler l'identité du module au compteur, ou
+/// tenir dans cent vingt-huit bits tirés au hasard (spec §7.4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct DepositId(u128);
 
