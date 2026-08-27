@@ -22,7 +22,7 @@
 //! propriété, et les autres se certifient par leurs propres suites.
 
 use pollster::block_on;
-use relink_application::commit::Commit;
+use relink_application::commit::{Commit, CommitVerdict};
 use relink_application::domain::{EntryId, ReservationId, Timestamp};
 use relink_application::expiry::ExpireReservations;
 use relink_application::ports::{CommitOutcome, PoolRepository};
@@ -130,13 +130,19 @@ fn replay(sequence: &[Event]) {
                     // après une expiration la réservation ne tient plus d'entrée.
                     // Ne resserre pas cette assertion — c'est l'invariant qui juge,
                     // pas le harnais, et ce cas est précisément le plus intéressant.
-                    block_on(commit.confirm(res)).expect("commit");
-                    world.ever_settled = true;
+                    let verdict = block_on(commit.confirm(res)).expect("commit");
+                    world.ever_settled |= verdict != CommitVerdict::Unknown;
                 }
             }
             Event::Abandoned => {
-                block_on(commit.abandon(res)).expect("abandon");
-                world.ever_settled = true;
+                // Gardé par le verdict, symétriquement à `ModuleAcknowledged` :
+                // `Unknown` signifie que la réservation ne tient plus d'entrée —
+                // elle a expiré — et que rien n'a donc été tranché. Poser
+                // `ever_settled` sur la simple tentative enregistrerait un
+                // tranchage qui n'a pas eu lieu, et le corollaire deviendrait
+                // faux sur toute séquence où une expiration précède un abandon.
+                let verdict = block_on(commit.abandon(res)).expect("abandon");
+                world.ever_settled |= verdict != CommitVerdict::Unknown;
             }
             Event::TtlElapsed => {
                 clock.set(Timestamp::from_millis(2_000));
@@ -200,7 +206,11 @@ fn aucune_sequence_d_interruption_ne_produit_de_duplication() {
             }
         }
     }
-    assert_eq!(sequences, 7 + 49 + 343 + 2401, "l'énumération doit être exhaustive");
+    assert_eq!(
+        sequences,
+        7 + 49 + 343 + 2401,
+        "l'énumération doit être exhaustive"
+    );
 }
 
 #[test]
