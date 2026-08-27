@@ -27,13 +27,6 @@ pub enum DepositError {
     /// Le Pokémon n'aurait pas pu être obtenu par le jeu normal.
     #[error("le Pokémon n'est pas légal")]
     Illegal,
-    /// Le Pokémon n'est pas éligible pour la cartouche de destination.
-    ///
-    /// Cette variante n'est **pas** produite par le dépôt : l'éligibilité
-    /// dépend de la cartouche vers laquelle le Pokémon redescendrait, ce que
-    /// le dépôt ignore. Elle appartient au cas d'usage de retrait.
-    #[error("le Pokémon n'est pas éligible ({0})")]
-    Ineligible(usize),
     /// Une offre d'échange direct se désigne elle-même comme destinataire.
     ///
     /// Distincte de [`Self::Illegal`] à dessein : un Pokémon parfaitement
@@ -125,7 +118,6 @@ where
             provenance: Provenance {
                 depositor: request.depositor,
                 deposited_at,
-                previous: Vec::new(),
             },
             state: EntryState::Available,
             reserved_for,

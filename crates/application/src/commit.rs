@@ -1,9 +1,11 @@
 //! Le cas d'usage de commit : trancher une réservation, une fois pour
 //! toutes.
 //!
-//! C'est le seul endroit du service où l'on peut détruire des données
-//! irremplaçables (spec §7). Un échange se conclut **physiquement** sur la
-//! cartouche : une fois l'animation passée, le Pokémon vit dans une
+//! C'est l'endroit le plus dangereux du service où l'on peut détruire des
+//! données irremplaçables (spec §7) — pas le seul : au dépôt aussi la
+//! cartouche perd le Pokémon tout aussi irréversiblement (spec §7.4). Un
+//! échange se conclut **physiquement** sur la cartouche : une fois
+//! l'animation passée, le Pokémon vit dans une
 //! sauvegarde vieille de trente ans, et il n'y a pas de rollback. Un module
 //! rejoue son journal d'intention à la reconnexion, et MQTT QoS 1 peut
 //! livrer un message plusieurs fois : le même message reçu dix fois doit

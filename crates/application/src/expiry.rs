@@ -72,7 +72,7 @@ where
     /// # Erreurs
     ///
     /// [`PortError`] si le port échoue.
-    pub async fn run(&self) -> Result<Vec<EntryId>, PortError> {
+    pub async fn execute(&self) -> Result<Vec<EntryId>, PortError> {
         let now = self.clock.now().await;
         self.pool.expire_due(now).await
     }

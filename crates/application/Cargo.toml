@@ -14,7 +14,6 @@ thiserror = "2"
 
 [dev-dependencies]
 pollster = "0.4"
-proptest = "1"
 
 [lints]
 workspace = true

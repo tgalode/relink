@@ -3,16 +3,25 @@
 //!
 //! L'ordre est imposé et n'est pas une préférence de style :
 //!
-//! 1. [`PoolRepository::claim`] d'abord, avec la [`ReservationId`] émise
+//! 1. [`PoolRepository::get`] d'abord, pour vérifier que cette offre est
+//!    bien faite à ce dresseur — [`ReserveError::NotOffered`] sinon, avant
+//!    que quoi que ce soit ne parte vers le module ou même vers `claim`. Ce
+//!    contrôle est sûr en lecture seule, malgré la fenêtre qui le sépare de
+//!    `claim` : [`crate::domain::PoolEntry::reserved_for`] est immuable une
+//!    fois l'entrée créée (voir sa documentation), donc rien ne peut le
+//!    faire mentir entre la lecture et l'action.
+//! 2. [`PoolRepository::claim`] ensuite, avec la [`ReservationId`] émise
 //!    **avant** l'appel — c'est ce qui rend possible toute la déduplication
-//!    du commit (spec §7.2).
-//! 2. [`ClaimOutcome::AlreadyTaken`] et [`ClaimOutcome::NotFound`] rendent
+//!    du commit (spec §7.2). `claim` reste seul juge de l'**état** de
+//!    l'entrée à cet instant ; le contrôle d'exclusivité ci-dessus ne s'est
+//!    prononcé que sur son destinataire, jamais sur sa disponibilité.
+//! 3. [`ClaimOutcome::AlreadyTaken`] et [`ClaimOutcome::NotFound`] rendent
 //!    l'erreur correspondante sans que rien ne parte vers le module.
-//! 3. [`ModuleTransport::push_reservation`] ensuite. Si elle échoue,
+//! 4. [`ModuleTransport::push_reservation`] ensuite. Si elle échoue,
 //!    l'erreur remonte mais **l'entrée reste réservée** : elle reviendra au
 //!    pool par expiration, jamais par une annulation qui ouvrirait une
 //!    fenêtre où deux joueurs pourraient tenir le même Pokémon.
-//! 4. [`Notifier::entry_claimed`] en dernier, et son échec est **ignoré** :
+//! 5. [`Notifier::entry_claimed`] en dernier, et son échec est **ignoré** :
 //!    prévenir le déposant est accessoire, faire échouer une réservation
 //!    valide parce qu'une notification push est tombée serait absurde.
 
@@ -41,6 +50,10 @@ pub enum ReserveError {
     /// Aucune entrée ne porte cet identifiant.
     #[error("cette entrée n'existe pas")]
     NotFound,
+    /// Cette entrée est une offre nominative (spec §7.3) faite à un autre
+    /// dresseur — voir [`crate::domain::PoolEntry::is_offered_to`].
+    #[error("cette entrée est réservée à quelqu'un d'autre")]
+    NotOffered,
     /// Une panne du monde extérieur — voir [`PortError`].
     #[error(transparent)]
     Port(#[from] PortError),
@@ -53,16 +66,16 @@ pub enum ReserveError {
 /// les tests — et plus généralement tout appelant qui doit inspecter leur
 /// état après l'appel — gardent la main dessus. L'horloge et la source
 /// d'identifiants, jamais inspectées après coup, sont détenues par valeur.
-pub struct Reserve<'p, R, T, N, C, I> {
-    pool: &'p R,
-    transport: &'p T,
-    notifier: &'p N,
+pub struct Reserve<'pool, R, T, N, C, I> {
+    pool: &'pool R,
+    transport: &'pool T,
+    notifier: &'pool N,
     clock: C,
     ids: I,
     ttl_millis: u64,
 }
 
-impl<'p, R, T, N, C, I> Reserve<'p, R, T, N, C, I>
+impl<'pool, R, T, N, C, I> Reserve<'pool, R, T, N, C, I>
 where
     R: PoolRepository,
     T: ModuleTransport,
@@ -74,9 +87,9 @@ where
     /// d'une réservation, en millisecondes.
     #[must_use]
     pub fn new(
-        pool: &'p R,
-        transport: &'p T,
-        notifier: &'p N,
+        pool: &'pool R,
+        transport: &'pool T,
+        notifier: &'pool N,
         clock: C,
         ids: I,
         ttl_millis: u64,
@@ -93,21 +106,40 @@ where
 
     /// Réserve une entrée du pool et la pousse vers le module donné.
     ///
-    /// Ordre imposé : [`PoolRepository::claim`] d'abord, avec l'identifiant
-    /// de réservation émis avant l'appel ; puis, seulement si l'entrée a été
-    /// réclamée, [`ModuleTransport::push_reservation`] ; enfin
-    /// [`Notifier::entry_claimed`], dont l'échec est ignoré. Voir la
+    /// Ordre imposé : [`PoolRepository::get`] d'abord, pour vérifier
+    /// l'exclusivité d'une offre nominative ; puis [`PoolRepository::claim`],
+    /// avec l'identifiant de réservation émis avant l'appel ; puis, seulement
+    /// si l'entrée a été réclamée, [`ModuleTransport::push_reservation`] ;
+    /// enfin [`Notifier::entry_claimed`], dont l'échec est ignoré. Voir la
     /// documentation du module.
     ///
     /// # Erreurs
     ///
-    /// [`ReserveError::AlreadyTaken`] si l'entrée est déjà réservée,
-    /// [`ReserveError::NotFound`] si elle n'existe pas — dans les deux cas
-    /// avant que quoi que ce soit ne parte vers le module.
-    /// [`ReserveError::Port`] si le stockage ou le transport échouent ; dans
-    /// ce dernier cas, l'entrée reste réservée : voir la documentation du
+    /// [`ReserveError::NotFound`] si l'entrée n'existe pas.
+    /// [`ReserveError::NotOffered`] si elle est réservée nommément à un
+    /// autre dresseur. [`ReserveError::AlreadyTaken`] si elle est déjà
+    /// réservée. Ces trois cas sont tranchés avant que quoi que ce soit ne
+    /// parte vers le module.
+    ///
+    /// [`ReserveError::Port`] si la lecture initiale, le stockage ou le
+    /// transport échouent — dans les trois cas l'entrée peut rester
+    /// réservée : une panne de la lecture ou de `claim` ne dit pas si son
+    /// effet a eu lieu (voir « Reprise après échec » sur [`PoolRepository`]),
+    /// et une panne du transport survient nécessairement après un
+    /// [`ClaimOutcome::Claimed`] déjà acquis. Dans aucun de ces cas
+    /// l'appelant ne doit supposer l'entrée libre : voir la documentation du
     /// module.
     pub async fn execute(&self, request: ReserveRequest) -> Result<ReservationId, ReserveError> {
+        let entry = self
+            .pool
+            .get(request.entry)
+            .await?
+            .ok_or(ReserveError::NotFound)?;
+
+        if !entry.is_offered_to(&request.claimant) {
+            return Err(ReserveError::NotOffered);
+        }
+
         let now = self.clock.now().await;
         let reservation = self.ids.next_reservation_id().await;
         let expires_at = now.saturating_add_millis(self.ttl_millis);
@@ -121,12 +153,6 @@ where
             ClaimOutcome::AlreadyTaken => return Err(ReserveError::AlreadyTaken),
             ClaimOutcome::NotFound => return Err(ReserveError::NotFound),
         }
-
-        let entry = self
-            .pool
-            .get(request.entry)
-            .await?
-            .expect("une entrée tout juste réclamée existe encore");
 
         self.transport
             .push_reservation(request.module, reservation, &entry.pokemon)

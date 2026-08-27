@@ -1,4 +1,5 @@
-//! Le commit, seul endroit du service où l'on peut détruire des données.
+//! Le commit, l'endroit le plus dangereux du service pour détruire des
+//! données — pas le seul, voir la spec §7.4 sur le dépôt.
 
 use pollster::block_on;
 use relink_application::commit::{Commit, CommitVerdict};

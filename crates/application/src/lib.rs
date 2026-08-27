@@ -22,10 +22,16 @@
 //! Le module [`reserve`] porte le cas d'usage de réservation : sortir un
 //! Pokémon du pool et le pousser vers le module physique d'un joueur.
 //!
+//! Le module [`acknowledge`] porte le cas d'usage d'accusé de réception : le
+//! verrou du §7.2, sans lequel une entrée réellement remise à une cartouche
+//! redeviendrait réservable à l'échéance de son TTL — voir la documentation
+//! du module avant d'y toucher.
+//!
 //! Le module [`commit`] porte le cas d'usage de commit : trancher une
-//! réservation, une fois pour toutes. C'est le seul endroit du service où
-//! l'on peut détruire des données irremplaçables — voir la documentation du
-//! module avant d'y toucher.
+//! réservation, une fois pour toutes. C'est l'endroit le plus dangereux du
+//! service pour détruire des données irremplaçables — pas le seul : le
+//! dépôt aussi perd le Pokémon de façon tout aussi irréversible (spec §7.4)
+//! — voir la documentation du module avant d'y toucher.
 //!
 //! Le module [`expiry`] porte le cas d'usage d'expiration : le seul chemin
 //! du service qui rend une entrée au pool, et seulement pour une
@@ -36,6 +42,7 @@
 //! réservé à un destinataire, apparié à un retrait ordinaire. Ce n'est pas
 //! un protocole séparé — voir la documentation du module avant d'y toucher.
 
+pub mod acknowledge;
 pub mod commit;
 pub mod deposit;
 pub mod domain;

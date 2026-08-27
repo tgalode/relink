@@ -45,7 +45,6 @@ pub fn sample_entry(id: EntryId) -> PoolEntry {
                 number: 1234,
             },
             deposited_at: Timestamp::from_millis(0),
-            previous: Vec::new(),
         },
         state: EntryState::Available,
         reserved_for: None,

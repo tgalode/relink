@@ -22,7 +22,7 @@ fn une_reservation_echue_rend_l_entree_au_pool() {
     block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("réservation");
 
     let clock = FixedClock::new(at(1_001));
-    let released = block_on(ExpireReservations::new(&pool, clock).run()).expect("expiration");
+    let released = block_on(ExpireReservations::new(&pool, clock).execute()).expect("expiration");
 
     assert_eq!(released, vec![id]);
     assert!(
@@ -40,7 +40,7 @@ fn une_reservation_encore_valide_n_est_pas_touchee() {
     block_on(pool.insert(sample_entry(id))).expect("insertion");
     block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("réservation");
 
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(999))).run())
+    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(999))).execute())
         .expect("expiration");
 
     assert!(released.is_empty());
@@ -60,7 +60,7 @@ fn l_echeance_exacte_expire_deja() {
     block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("réservation");
 
     // La convention du contrat de `expire_due` est `expires_at <= now`.
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(1_000))).run())
+    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(1_000))).execute())
         .expect("expiration");
     assert_eq!(released, vec![id], "à l'échéance exacte, l'entrée revient");
 }
@@ -74,8 +74,9 @@ fn une_entree_commitee_n_expire_jamais_meme_tres_tard() {
     block_on(pool.claim(id, res, at(1_000))).expect("réservation");
     block_on(Commit::new(&pool, FixedClock::new(at(500))).confirm(res)).expect("commit");
 
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).run())
-        .expect("expiration");
+    let released =
+        block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).execute())
+            .expect("expiration");
     assert!(released.is_empty());
 }
 
@@ -88,8 +89,9 @@ fn une_entree_abandonnee_n_expire_jamais_non_plus() {
     block_on(pool.claim(id, res, at(1_000))).expect("réservation");
     block_on(Commit::new(&pool, FixedClock::new(at(500))).abandon(res)).expect("abandon");
 
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).run())
-        .expect("expiration");
+    let released =
+        block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).execute())
+            .expect("expiration");
     assert!(
         released.is_empty(),
         "on choisit la perte : elle ne revient jamais"
@@ -109,8 +111,9 @@ fn une_entree_remise_a_un_module_n_expire_jamais() {
     block_on(pool.claim(id, res, at(1_000))).expect("réservation");
     block_on(pool.record_delivery(res)).expect("accusé de réception");
 
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).run())
-        .expect("expiration");
+    let released =
+        block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).execute())
+            .expect("expiration");
     assert!(
         released.is_empty(),
         "on choisit la perte plutôt que la duplication"
@@ -131,7 +134,7 @@ fn une_entree_jamais_parvenue_a_un_module_expire_normalement() {
     block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("réservation");
     // Pas d'accusé de réception : rien n'a jamais atteint de cartouche.
 
-    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(1_001))).run())
+    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(1_001))).execute())
         .expect("expiration");
     assert_eq!(released, vec![id]);
 }
@@ -142,7 +145,8 @@ fn une_entree_rendue_peut_etre_reservee_a_nouveau() {
     let id = EntryId::from_u128(1);
     block_on(pool.insert(sample_entry(id))).expect("insertion");
     block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("première");
-    block_on(ExpireReservations::new(&pool, FixedClock::new(at(2_000))).run()).expect("expiration");
+    block_on(ExpireReservations::new(&pool, FixedClock::new(at(2_000))).execute())
+        .expect("expiration");
 
     let outcome =
         block_on(pool.claim(id, ReservationId::from_u128(11), at(3_000))).expect("seconde");

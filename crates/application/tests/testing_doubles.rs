@@ -195,7 +195,7 @@ fn une_entree_livree_n_expire_jamais() {
 }
 
 #[test]
-fn record_delivery_apres_tranchage_ne_dementitie_pas_le_commit() {
+fn record_delivery_apres_tranchage_ne_dement_pas_le_commit() {
     let pool = InMemoryPool::new();
     let id = EntryId::from_u128(1);
     let res = ReservationId::from_u128(10);

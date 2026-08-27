@@ -118,15 +118,17 @@ impl ReservationId {
     }
 }
 
-/// D'où vient un Pokémon et par quelles mains il est passé.
+/// D'où vient un Pokémon : qui l'a déposé, et quand.
+///
+/// Le §6.3 de la spec n'exige qu'un dresseur, pas une chaîne : rien ne lie
+/// une entrée re-déposée à l'entrée précédente, donc rien ne pourrait jamais
+/// alimenter un historique plus long.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Provenance {
     /// Le dresseur qui l'a déposé dans le pool.
     pub depositor: TrainerId,
     /// Quand il a été déposé.
     pub deposited_at: Timestamp,
-    /// Les dresseurs qui l'ont possédé avant, du plus ancien au plus récent.
-    pub previous: Vec<TrainerId>,
 }
 
 /// Un Pokémon tel que le pool le conserve.
@@ -221,14 +223,20 @@ pub struct PoolEntry {
     ///
     /// `None` pour un dépôt ordinaire : l'offre est ouverte à tout le
     /// monde. `Some(trainer)` pour une offre d'échange direct : seul ce
-    /// dresseur peut la voir comme prenable. L'échange direct n'est pas un
-    /// protocole séparé — c'est ce champ qui distingue un dépôt d'une offre,
-    /// rien d'autre : voir [`crate::pairing::OfferDirectTrade`].
+    /// dresseur peut la réserver — voir
+    /// [`crate::domain::PoolEntry::is_offered_to`], que [`crate::reserve::Reserve::execute`]
+    /// applique avant toute réservation. `list_claimable()` continue de
+    /// rendre l'entrée à tout le monde : c'est un adaptateur, filtrant avec
+    /// ce prédicat, qui restreint ce qu'un dresseur voit comme prenable.
+    /// L'échange direct n'est pas un protocole séparé — c'est ce champ qui
+    /// distingue un dépôt d'une offre, rien d'autre : voir
+    /// [`crate::pairing::OfferDirectTrade`].
     ///
     /// Immuable une fois l'entrée créée : aucune opération de ce crate ne le
     /// modifie après [`crate::ports::PoolRepository::insert`], ce qui permet
     /// de le lire puis d'agir sur l'entrée sans fenêtre de course sur ce
-    /// champ précis.
+    /// champ précis — c'est ce que [`crate::reserve::Reserve::execute`]
+    /// exploite pour contrôler l'exclusivité avant `claim`.
     pub reserved_for: Option<TrainerId>,
 }
 

@@ -37,7 +37,6 @@ fn un_depot_valide_entre_dans_le_pool() {
     assert!(stored.is_claimable());
     assert_eq!(stored.provenance.deposited_at, Timestamp::from_millis(7));
     assert_eq!(stored.provenance.depositor.number, 1234);
-    assert!(stored.provenance.previous.is_empty());
     assert_eq!(stored.pokemon.bytes, some_pokemon().bytes);
 }
 

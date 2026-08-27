@@ -176,8 +176,17 @@ fn l_entree_est_reservee_avant_que_quoi_que_ce_soit_ne_parte_vers_le_module() {
     assert!(matches!(outcome, Err(ReserveError::Port(_))));
     let stored = block_on(pool.get(id)).expect("lecture").expect("présente");
     assert!(
-        !stored.is_claimable(),
-        "l'entrée reste réservée : elle reviendra par expiration, jamais par annulation"
+        matches!(
+            stored.state,
+            EntryState::Reserved {
+                delivered: false,
+                ..
+            }
+        ),
+        "l'entrée doit rester précisément Reserved{{ delivered: false, .. }} : \
+         elle reviendra par expiration, jamais par annulation. \
+         état observé : {:?}",
+        stored.state
     );
 }
 
@@ -204,4 +213,76 @@ fn une_notification_en_panne_n_annule_pas_la_reservation() {
         reservation.is_ok(),
         "prévenir le déposant est accessoire, pas critique"
     );
+}
+
+/// Une offre nominative (spec §7.3), posée directement dans le pool avec le
+/// `reserved_for` que [`Reserve::execute`] doit respecter.
+fn offered_entry(id: EntryId, reserved_for: TrainerId) -> relink_application::domain::PoolEntry {
+    let mut entry = sample_entry(id);
+    entry.reserved_for = Some(reserved_for);
+    entry
+}
+
+#[test]
+fn une_offre_nominative_est_refusee_a_un_tiers() {
+    let pool = InMemoryPool::new();
+    let transport = RecordingTransport::new();
+    let notifier = RecordingNotifier::new();
+    let id = EntryId::from_u128(1);
+    let recipient = TrainerId {
+        name: some_name(),
+        number: 42,
+    };
+    block_on(pool.insert(offered_entry(id, recipient))).expect("insertion");
+
+    let uc = Reserve::new(
+        &pool,
+        &transport,
+        &notifier,
+        FixedClock::new(Timestamp::from_millis(0)),
+        SequentialIds::new(),
+        TTL,
+    );
+    // `request(id)` réserve pour le dresseur 999, distinct de `recipient`.
+    let outcome = block_on(uc.execute(request(id)));
+
+    assert_eq!(outcome, Err(ReserveError::NotOffered));
+    assert!(
+        transport.pushed().is_empty(),
+        "rien ne doit partir vers le module pour un tiers non désigné"
+    );
+    let stored = block_on(pool.get(id)).expect("lecture").expect("présente");
+    assert!(
+        stored.is_claimable(),
+        "l'entrée reste offerte à son destinataire, le refus d'un tiers ne doit pas la consommer"
+    );
+}
+
+#[test]
+fn une_offre_nominative_est_acceptee_par_son_destinataire() {
+    let pool = InMemoryPool::new();
+    let transport = RecordingTransport::new();
+    let notifier = RecordingNotifier::new();
+    let id = EntryId::from_u128(1);
+    // Même dresseur que celui que `request(id)` fait réserver.
+    let recipient = TrainerId {
+        name: some_name(),
+        number: 999,
+    };
+    block_on(pool.insert(offered_entry(id, recipient))).expect("insertion");
+
+    let uc = Reserve::new(
+        &pool,
+        &transport,
+        &notifier,
+        FixedClock::new(Timestamp::from_millis(0)),
+        SequentialIds::new(),
+        TTL,
+    );
+    let reservation =
+        block_on(uc.execute(request(id))).expect("le destinataire doit pouvoir réserver son offre");
+
+    assert_eq!(transport.pushed().len(), 1, "la poussée doit avoir eu lieu");
+    let stored = block_on(pool.get(id)).expect("lecture").expect("présente");
+    assert_eq!(stored.state.reservation(), Some(reservation));
 }

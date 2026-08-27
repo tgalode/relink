@@ -146,7 +146,7 @@ fn replay(sequence: &[Event]) {
             }
             Event::TtlElapsed => {
                 clock.set(Timestamp::from_millis(2_000));
-                block_on(expiry.run()).expect("expiration");
+                block_on(expiry.execute()).expect("expiration");
             }
         }
         assert_invariant(&pool, id, &world, sequence, *event);

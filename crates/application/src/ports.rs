@@ -121,6 +121,17 @@ pub trait Clock {
 /// n'a rien reçu. Aucun des deux ne duplique, mais les deux détruisent en
 /// silence — sans la visibilité que l'arbitrage « on choisit la perte » du
 /// §7.1 suppose.
+///
+/// Contrairement à tous les autres ports de ce module, ses deux méthodes sont
+/// **infaillibles**. C'est tenable uniquement parce que ce crate suppose des
+/// identifiants tirés au hasard sur cent vingt-huit bits (voir
+/// [`crate::domain::DepositId`]) : la probabilité de collision est nulle en
+/// pratique, il n'y a donc rien à rapporter en erreur. Un adaptateur adossé à
+/// une séquence — un `SERIAL` SQL, un compteur distribué qui peut être
+/// injoignable — ne peut **pas** honorer cette signature sans paniquer sur
+/// panne : un futur auteur d'adaptateur pour qui l'aléa ne suffit pas devra
+/// faire évoluer ce trait pour rendre `Result`, pas contourner l'infaillibilité
+/// promise ici par un `panic!` caché.
 pub trait IdSource {
     /// Un identifiant d'entrée qui n'a jamais été rendu.
     ///

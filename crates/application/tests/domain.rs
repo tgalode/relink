@@ -22,7 +22,6 @@ fn entry(state: EntryState) -> PoolEntry {
         provenance: Provenance {
             depositor: TrainerId { name, number: 42 },
             deposited_at: at(0),
-            previous: Vec::new(),
         },
         state,
         reserved_for: None,
