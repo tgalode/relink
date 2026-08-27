@@ -19,6 +19,7 @@
 - Rust 1.85 minimum, édition 2024.
 - Les tests vivent dans `crates/application/tests/` et n'utilisent que l'API publique. Un `//!` de documentation en tête est nécessaire.
 - **Arbitrage de la spec §7.1, non négociable : en cas d'ambiguïté, on choisit la perte.** Une entrée dont on ne sait pas si la cartouche l'a reçue reste consommée. Aucun code de ce lot ne doit pouvoir rendre au pool une entrée dont un commit a été tenté.
+- **Spec §7.2 : le TTL ne protège que contre une réservation qui n'est jamais parvenue à un module.** Une entrée dont un module a accusé réception ne revient **jamais** automatiquement au pool, même très longtemps après son échéance — seul le module peut la trancher. Un module hors ligne ayant déjà remis le Pokémon à la cartouche est indiscernable d'un module qui n'a rien reçu : rendre l'entrée au pool dans le doute produirait une duplication.
 - **Spec §7.3 : il n'existe aucun chemin de commit à deux cartouches.** L'échange direct est un dépôt et un retrait appariés, rien d'autre.
 
 ## Un écart de méthode, déclaré
@@ -267,7 +268,8 @@ fn l_avance_du_temps_sature_au_lieu_de_deborder() {
 fn seule_une_entree_disponible_est_prenable() {
     let r = ReservationId::from_u128(7);
     assert!(entry(EntryState::Available).is_claimable());
-    assert!(!entry(EntryState::Reserved { reservation: r, expires_at: at(1) }).is_claimable());
+    assert!(!entry(EntryState::Reserved { reservation: r, expires_at: at(1), delivered: false }).is_claimable());
+    assert!(!entry(EntryState::Reserved { reservation: r, expires_at: at(1), delivered: true }).is_claimable());
     assert!(!entry(EntryState::Committed { reservation: r, at: at(1) }).is_claimable());
     assert!(!entry(EntryState::Abandoned { reservation: r, at: at(1) }).is_claimable());
 }
@@ -276,7 +278,7 @@ fn seule_une_entree_disponible_est_prenable() {
 fn l_etat_rend_la_reservation_qui_le_gouverne() {
     let r = ReservationId::from_u128(7);
     assert_eq!(EntryState::Available.reservation(), None);
-    assert_eq!(EntryState::Reserved { reservation: r, expires_at: at(1) }.reservation(), Some(r));
+    assert_eq!(EntryState::Reserved { reservation: r, expires_at: at(1), delivered: false }.reservation(), Some(r));
     assert_eq!(EntryState::Committed { reservation: r, at: at(1) }.reservation(), Some(r));
     assert_eq!(EntryState::Abandoned { reservation: r, at: at(1) }.reservation(), Some(r));
 }
@@ -410,8 +412,16 @@ pub enum EntryState {
     Reserved {
         /// La réservation qui la tient.
         reservation: ReservationId,
-        /// Au-delà de cet instant, l'entrée retourne au pool.
+        /// Au-delà de cet instant, l'entrée retourne au pool — **mais seulement
+        /// si aucun module n'en a accusé réception**.
         expires_at: Timestamp,
+        /// Un module a-t-il accusé réception de cette réservation ?
+        ///
+        /// Tant que c'est faux, rien n'a pu atteindre une cartouche et
+        /// l'expiration est sûre. Dès que c'est vrai, l'entrée ne revient plus
+        /// jamais au pool toute seule : un module hors ligne ayant déjà remis
+        /// le Pokémon est indiscernable d'un module qui n'a rien reçu.
+        delivered: bool,
     },
     /// Remise à une cartouche, confirmée par le module.
     Committed {
@@ -652,9 +662,20 @@ pub trait PoolRepository {
         at: Timestamp,
     ) -> Result<CommitOutcome, PortError>;
 
+    /// **Atomique et idempotente.** Enregistre qu'un module a accusé réception
+    /// d'une réservation. À partir de là, l'entrée ne peut plus expirer.
+    ///
+    /// L'accusé vient du module, jamais du courtier de messages : qu'un
+    /// courtier ait accepté un message ne dit rien de ce que le module en a
+    /// fait.
+    async fn record_delivery(&self, reservation: ReservationId) -> Result<CommitOutcome, PortError>;
+
     /// **Atomique.** Rend au pool les entrées dont la réservation a expiré à
-    /// cet instant, et rend leurs identifiants. Une entrée dont un commit a
-    /// été enregistré ne doit **jamais** en faire partie.
+    /// cet instant, et rend leurs identifiants.
+    ///
+    /// N'en font **jamais** partie : une entrée dont un commit ou un abandon a
+    /// été enregistré, ni une entrée dont un module a accusé réception. Seule
+    /// une réservation qui n'est jamais parvenue à un module peut expirer.
     async fn expire_due(&self, now: Timestamp) -> Result<Vec<EntryId>, PortError>;
 }
 
@@ -906,7 +927,8 @@ Expected: FAIL — `unresolved import relink_application::testing`
 - Toutes utilisent `std::sync::Mutex` pour leur état interne et prennent `&self`, jamais `&mut self` : les ports sont déclarés en `&self`.
 - `InMemoryPool::claim` vérifie l'état **et** l'écrit sous le même verrou. Deux verrous successifs seraient une violation du contrat, et le test « une entrée ne peut être réservée qu'une fois » l'attraperait.
 - `record_commit` et `record_abandon` consultent une table `ReservationId -> ()` des réservations déjà tranchées : premier appel `Recorded`, suivants `AlreadyRecorded`, y compris entre commit et abandon — **une réservation ne se tranche qu'une fois, dans un sens ou dans l'autre**.
-- `expire_due` ne rend que les entrées dont l'état est `Reserved` et dont `expires_at <= now`, et les repasse à `Available` sous le même verrou. Une entrée `Committed` ou `Abandoned` n'en fait jamais partie.
+- `expire_due` ne rend que les entrées dont l'état est `Reserved`, dont `delivered` est **faux**, et dont `expires_at <= now` ; elle les repasse à `Available` sous le même verrou. Une entrée `Committed`, `Abandoned`, ou `Reserved` avec `delivered` vrai n'en fait **jamais** partie.
+- `record_delivery` passe `delivered` à vrai, et rend `AlreadyRecorded` si c'était déjà le cas ou si la réservation est déjà tranchée.
 - `fail_next` empile une erreur consommée par le prochain appel, quel qu'il soit. C'est ce qui permettra à la tâche 10 de simuler les pannes.
 - `FixedClock` n'avance que sur `advance` ou `set`. Elle ne lit jamais `SystemTime`.
 - `SequentialIds` rend 1, 2, 3… pour chaque famille d'identifiants, et ne rend jamais 0 — ce qui rend les traces de test lisibles et les scénarios reproductibles.
@@ -1107,9 +1129,15 @@ fn une_reservation_sort_l_entree_du_pool_et_pousse_vers_le_module() {
 
     let stored = block_on(pool.get(id)).expect("lecture").expect("présente");
     assert!(!stored.is_claimable(), "l'entrée quitte le pool à la réservation");
+    // `delivered` reste faux : pousser vers le courtier n'est pas un accusé de
+    // réception du module. Tant qu'il est faux, l'expiration reste sûre.
     assert_eq!(
         stored.state,
-        EntryState::Reserved { reservation, expires_at: Timestamp::from_millis(1_000 + TTL) }
+        EntryState::Reserved {
+            reservation,
+            expires_at: Timestamp::from_millis(1_000 + TTL),
+            delivered: false,
+        }
     );
     assert_eq!(transport.pushed(), vec![(ModuleId::from_u128(7), reservation)]);
 }
@@ -1473,6 +1501,36 @@ fn une_entree_abandonnee_n_expire_jamais_non_plus() {
 }
 
 #[test]
+fn une_entree_remise_a_un_module_n_expire_jamais() {
+    // Le scénario qui a fait corriger la spec §7.2 : le module a accusé
+    // réception, puis a disparu. Il a peut-être déjà remis le Pokémon à la
+    // cartouche — on ne le saura jamais. Rendre l'entrée au pool serait une
+    // duplication.
+    let pool = InMemoryPool::new();
+    let id = EntryId::from_u128(1);
+    let res = ReservationId::from_u128(10);
+    block_on(pool.insert(sample_entry(id))).expect("insertion");
+    block_on(pool.claim(id, res, at(1_000))).expect("réservation");
+    block_on(pool.record_delivery(res)).expect("accusé de réception");
+
+    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(u64::MAX))).run()).expect("expiration");
+    assert!(released.is_empty(), "on choisit la perte plutôt que la duplication");
+    assert!(!block_on(pool.get(id)).expect("lecture").expect("présente").is_claimable());
+}
+
+#[test]
+fn une_entree_jamais_parvenue_a_un_module_expire_normalement() {
+    let pool = InMemoryPool::new();
+    let id = EntryId::from_u128(1);
+    block_on(pool.insert(sample_entry(id))).expect("insertion");
+    block_on(pool.claim(id, ReservationId::from_u128(10), at(1_000))).expect("réservation");
+    // Pas d'accusé de réception : rien n'a jamais atteint de cartouche.
+
+    let released = block_on(ExpireReservations::new(&pool, FixedClock::new(at(1_001))).run()).expect("expiration");
+    assert_eq!(released, vec![id]);
+}
+
+#[test]
 fn une_entree_rendue_peut_etre_reservee_a_nouveau() {
     let pool = InMemoryPool::new();
     let id = EntryId::from_u128(1);
@@ -1681,6 +1739,8 @@ use util::sample_entry;
 /// Ce que le monde peut faire subir à un échange en cours.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Event {
+    /// Le module accuse réception de la réservation.
+    ModuleAcknowledged,
     /// Le module écrit son intention en flash, puis la cartouche commite.
     CartridgeCommitted,
     /// Le serveur enregistre la confirmation.
@@ -1695,7 +1755,8 @@ enum Event {
     TtlElapsed,
 }
 
-const ALL_EVENTS: [Event; 6] = [
+const ALL_EVENTS: [Event; 7] = [
+    Event::ModuleAcknowledged,
     Event::CartridgeCommitted,
     Event::ServerConfirmed,
     Event::Redelivered,
@@ -1707,6 +1768,9 @@ const ALL_EVENTS: [Event; 6] = [
 /// L'état du monde qu'on suit en parallèle du pool : ce que les cartouches
 /// détiennent réellement, indépendamment de ce que le serveur croit.
 struct World {
+    /// Le module a-t-il accusé réception ? Une cartouche ne peut rien recevoir
+    /// avant cela.
+    module_acknowledged: bool,
     /// La cartouche a-t-elle réellement reçu le Pokémon ?
     cartridge_holds: bool,
 }
@@ -1722,11 +1786,22 @@ fn replay(sequence: &[Event]) {
 
     let commit = Commit::new(&pool, clock.clone());
     let expiry = ExpireReservations::new(&pool, clock.clone());
-    let mut world = World { cartridge_holds: false };
+    let mut world = World { module_acknowledged: false, cartridge_holds: false };
 
     for event in sequence {
         match event {
-            Event::CartridgeCommitted => world.cartridge_holds = true,
+            Event::ModuleAcknowledged => {
+                block_on(pool.record_delivery(res)).expect("accusé de réception");
+                world.module_acknowledged = true;
+            }
+            // Une cartouche ne peut recevoir que d'un module qui a reçu la
+            // réservation. Le modèle doit refléter cette dépendance, sinon il
+            // teste un monde qui n'existe pas.
+            Event::CartridgeCommitted => {
+                if world.module_acknowledged {
+                    world.cartridge_holds = true;
+                }
+            }
             Event::ServerConfirmed | Event::Redelivered | Event::ModuleRebooted => {
                 // Le module ne confirme que ce que la cartouche a réellement pris.
                 if world.cartridge_holds {
@@ -1806,15 +1881,17 @@ fn aucune_sequence_d_interruption_ne_produit_de_duplication() {
             }
         }
     }
-    assert_eq!(sequences, 6 + 36 + 216 + 1296, "l'énumération doit être exhaustive");
+    assert_eq!(sequences, 7 + 49 + 343 + 2401, "l'énumération doit être exhaustive");
 }
 
 #[test]
 fn le_scenario_le_plus_dangereux_est_couvert_explicitement() {
-    // La cartouche a reçu, mais le serveur ne le saura jamais, et le temps passe.
-    replay(&[Event::CartridgeCommitted, Event::Abandoned, Event::TtlElapsed]);
-    replay(&[Event::CartridgeCommitted, Event::TtlElapsed, Event::Abandoned]);
-    replay(&[Event::CartridgeCommitted, Event::ModuleRebooted, Event::Redelivered, Event::TtlElapsed]);
+    // Celui qui a fait corriger la spec §7.2 : la cartouche a reçu, le serveur
+    // ne le saura jamais, et le temps passe.
+    replay(&[Event::ModuleAcknowledged, Event::CartridgeCommitted, Event::TtlElapsed]);
+    replay(&[Event::ModuleAcknowledged, Event::CartridgeCommitted, Event::Abandoned, Event::TtlElapsed]);
+    replay(&[Event::ModuleAcknowledged, Event::CartridgeCommitted, Event::TtlElapsed, Event::Abandoned]);
+    replay(&[Event::ModuleAcknowledged, Event::CartridgeCommitted, Event::ModuleRebooted, Event::Redelivered]);
 }
 ```
 
@@ -1824,7 +1901,9 @@ Run: `cargo test -p relink-application --test invariant`
 
 **Si un scénario échoue, c'est un vrai bug**, et le correctif porte sur la tâche d'origine — jamais sur le test, jamais sur l'invariant. Le message d'assertion imprime la séquence fautive : c'est elle qu'il faut comprendre avant de toucher à quoi que ce soit. Documente dans ton rapport le scénario trouvé et pourquoi ta correction est la bonne.
 
-Le scénario le plus probablement révélateur : `CartridgeCommitted` puis `TtlElapsed` sans confirmation. La cartouche détient le Pokémon, le serveur n'en sait rien, et l'expiration le rendrait au pool — **c'est une duplication**. Si le test la trouve, ce n'est pas le test qui a tort : c'est que le TTL de la tâche 8 doit être plus long que la fenêtre de rejeu du module, ou que l'expiration doit exiger une preuve que rien n'a été poussé. Remonte-le comme un défaut de conception à arbitrer, pas comme un bug à corriger en silence.
+Ce test a **déjà trouvé un défaut, avant même d'être écrit** : en le concevant, on s'est aperçu que la justification de l'expiration donnée par la spec §7.2 était fausse, et que la séquence « le module accuse réception, la cartouche commite, le TTL expire » produisait une duplication. La spec et ce plan ont été corrigés en conséquence — c'est l'objet de la contrainte globale sur l'expiration et du port `record_delivery`.
+
+Si le test trouve **autre chose**, applique le même traitement : ce n'est ni le test ni l'invariant qui ont tort. Comprends la séquence imprimée, remonte-la comme un défaut de conception à arbitrer, et ne la corrige pas en silence.
 
 - [ ] **Step 4: Vérification complète**
 

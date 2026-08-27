@@ -209,8 +209,37 @@ pour ce traitement futur, hors périmètre v1.
 ### 7.2 Expiration des réservations
 
 TTL obligatoire : sans lui, un joueur qui ne branche jamais son module gèle le
-pool. À l'expiration l'entrée revient au pool — et c'est le **seul** cas où
-elle revient, puisqu'aucun commit n'a alors jamais été tenté.
+pool.
+
+**Corrigé le 2026-08-27, en écrivant le plan du crate `application`.** Ce
+paragraphe disait : « à l'expiration l'entrée revient au pool — et c'est le seul
+cas où elle revient, puisqu'aucun commit n'a alors jamais été tenté. » C'était
+faux, et d'une façon qui ouvrait précisément le trou que tout le §7 cherche à
+fermer.
+
+Le serveur ne sait pas qu'aucun commit n'a été tenté. Il sait qu'il n'en a
+**pas entendu parler**. Un module qui a reçu la réservation, remis le Pokémon à
+la cartouche, puis perdu le réseau, est indiscernable d'un module qui n'a jamais
+rien reçu. Rendre l'entrée au pool dans ce cas produit une duplication.
+
+**La règle corrigée :** le TTL ne protège que contre une réservation **qui n'est
+jamais parvenue à un module**. Une entrée porte donc, en plus de son échéance,
+le fait qu'un module en ait accusé réception :
+
+- **Réservée, non remise** — le module n'a jamais accusé réception. À
+  l'échéance, l'entrée revient au pool. Aucun commit n'a pu être tenté, puisque
+  rien n'est jamais arrivé jusqu'à une cartouche.
+- **Réservée et remise** — un module a accusé réception. L'entrée ne revient
+  **jamais** automatiquement. Seul le module peut la trancher, en confirmant ou
+  en signalant l'abandon. Un module détruit avant d'avoir parlé laisse l'entrée
+  bloquée, ce qui relève du traitement de litige manuel.
+
+C'est le même arbitrage qu'au §7.1, appliqué au bon endroit : on choisit la
+perte. Un Pokémon bloqué est un incident visible et rattrapable ; un Pokémon
+dupliqué ne l'est pas.
+
+L'accusé de réception vient du **module**, pas du courtier de messages : qu'un
+courtier ait accepté un message ne dit rien de ce que le module en a fait.
 
 ### 7.3 L'échange direct : un commit à deux cartouches
 
