@@ -13,4 +13,5 @@
 
 #![no_std]
 
+pub mod gen1;
 pub mod text;
