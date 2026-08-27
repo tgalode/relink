@@ -55,7 +55,7 @@ en **mode bufferisé** — le module détient l'équipe adverse complète et ré
 Le cœur n'est pas un bloc. Ce sont deux couches aux contraintes disjointes :
 
 ```
-crates/protocol      no_std + alloc   codecs Gen 1/2, machine à états    zéro I/O
+crates/protocol      no_std, sans alloc   codecs Gen 1/2, machine à états    zéro I/O
 crates/application   std              dépôt, réservation, provenance     ports en traits
 ```
 
@@ -63,6 +63,13 @@ crates/application   std              dépôt, réservation, provenance     port
 `application` consomme les *valeurs* de `protocol` (`Pokemon`, `TradeBlock`,
 `Generation`, l'éligibilité Capsule Temporelle) et lui fournit une
 `PartnerStrategy`. Il ne connaît rien de `Session` ni du fil.
+
+Précision apportée par le plan des codecs : `protocol` tient **sans
+allocateur**. Toutes ses structures sont de taille fixe — un bloc d'échange
+fait 415 octets, une équipe six emplacements — et le codec est une *vue* sur
+des octets plutôt qu'un analyseur qui reconstruit. Contrainte plus stricte que
+prévu initialement, donc sûre, et vérifiable : le crate doit se compiler pour
+une cible embarquée dépourvue d'allocateur.
 
 `protocol` est écrit en cœur fonctionnel pur : `(état, événement) → (état,
 effets)`, aucune I/O, aucun trait async. C'est ce qui le rend `no_std`,
