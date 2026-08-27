@@ -9,6 +9,13 @@
 //! Le module [`domain`] pose les types métier — instants, identifiants,
 //! Pokémon et entrées de pool — sur lesquels s'appuieront les ports et les
 //! cas d'usage des lots suivants.
+//!
+//! Le module [`testing`] fournit des doublures en mémoire des ports,
+//! utilisées par les tests d'intégration de ce crate et des suivants. Il
+//! n'est pas réservé au profil `test` : les tests d'intégration sont des
+//! crates séparés et doivent pouvoir l'importer comme une dépendance
+//! normale.
 
 pub mod domain;
 pub mod ports;
+pub mod testing;
