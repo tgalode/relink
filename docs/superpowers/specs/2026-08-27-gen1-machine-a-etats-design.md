@@ -35,9 +35,15 @@ contre une tentation naturelle :
 - **Ne jamais compter les octets neutres.** Les sources se contredisent sur
   leur nombre après la négociation. La machine à états réagit à des marqueurs,
   pas à des compteurs, partout où elle le peut.
-- **Ne jamais s'appuyer sur la longueur exacte de la patch list.** Les deux
-  sources qui la donnent ne s'accordent pas à l'octet près. La lecture se
-  termine sur ses deux terminateurs `0xFF`.
+- **Ne pas sortir de la patch list trop tôt.** Les deux sources qui donnent
+  sa longueur ne s'accordent pas à l'octet près, et ses terminateurs ne
+  suffisent pas à en marquer la fin : après eux viennent des octets de
+  remplissage à zéro, identiques à ceux de la phase de sélection. Sortir en
+  avance ferait présenter une offre pendant que la cartouche lit encore sa
+  liste, où elle serait prise pour une position à corriger — le bloc présenté
+  arriverait faux. On suit donc le compte de la seule implémentation vérifiée
+  sur matériel ; sortir en retard est sans conséquence, puisqu'on y présente
+  l'octet neutre, celui-là même que la cartouche attend.
 - **`0x61` est ambigu.** Il vaut « je propose le Pokémon d'index 1 » en phase
   de sélection et « je refuse » en phase de verdict. Seule la phase courante
   les distingue : une implémentation qui déciderait sur la valeur de l'octet
@@ -98,7 +104,8 @@ impl Session {
     pub fn supply(&mut self, decision: Decision);
 
     /// L'équipe du partenaire, dès que `PartnerBlockReceived` a été émis.
-    pub fn partner_block(&self) -> Option<&TradeBlock>;
+    /// Rendue par copie — 415 octets, hors du chemin critique de l'octet.
+    pub fn partner_block(&self) -> Option<TradeBlock>;
 }
 
 pub enum Effect {
@@ -141,7 +148,7 @@ préambule, bloc et patch list pour resynchroniser.
 | `Seed` | on renvoie ce qu'on reçoit | 19 octets consommés (10 d'aléa + 9 de préambule) → `Block` |
 | `Block` | l'octet du bloc sortant à la position courante | 415 octets → `PatchHeader` |
 | `PatchHeader` | on renvoie ce qu'on reçoit | 6 × `0xFD` comptés → `PatchList` |
-| `PatchList` | les octets de patch list sortants, après les sept octets neutres d'en-tête | second terminateur `0xFF` reçu puis section close → `Select`, effet `PartnerBlockReceived` |
+| `PatchList` | les octets de patch list sortants, après les sept octets neutres d'en-tête | section close au compte sourcé → `Select`, effet `PartnerBlockReceived` |
 | `Select` | l'offre si elle est connue, `0x00` sinon | à l'entrée, effet `OfferNeeded` ; `0x60`+i reçu → effet `PartnerOffered` ; les deux offres connues → `Verdict`, effet `VerdictNeeded` ; `0x6F` → `Waiting`, effet `TableLeft` |
 | `Verdict` | le verdict s'il est connu, `0x00` sinon | `0x62` des deux côtés → `Trading`, effet `TradeAgreed` ; `0x61` → retour à `Select` |
 | `Trading` | `0x00` | premier `0xFD` → `Preamble`, pour l'échange suivant |
@@ -149,9 +156,16 @@ préambule, bloc et patch list pour resynchroniser.
 
 Trois règles traversent toutes les phases :
 
-1. **Recevoir `0x01` en cours de route** signifie que la cartouche a
-   redémarré sa négociation. La session repart de `Negotiating` et répond
-   `0x02`, quel que soit l'endroit où elle était.
+1. **Recevoir `0x01` dans une phase de synchronisation** signifie que la
+   cartouche a redémarré sa négociation : la session repart de `Negotiating`
+   et répond `0x02`. La règle ne vaut **pas** dans les phases de données —
+   bloc, graine, patch list transportent des octets arbitraires, où `0x01`
+   est une donnée et non un signal. Conséquence assumée : une cartouche qui
+   redémarre en plein transfert laisse la session bloquée. `protocol` ne
+   connaît pas le temps et ne peut pas s'en sortir seul ; c'est au firmware,
+   qui a une horloge, de détruire la session et d'en ouvrir une neuve. Un
+   test fige ce comportement pour qu'il reste une décision et non un
+   accident.
 2. **Les compteurs sont bornés.** Aucune phase ne peut faire déborder un
    index de tampon, quelle que soit la suite d'octets reçue.
 3. **Le renvoi est le comportement par défaut** dans les phases de
@@ -247,4 +261,5 @@ thumbv7em-none-eabihf` reste la seule preuve que la contrainte tient.
 |---|---|---|
 | L'étendue de la patch list est contredite entre sources. | Un surnom contenant un « 8 » pourrait être corrompu dans un sens ou dans l'autre. | Suivre la source vérifiée sur matériel, documenter le désaccord, écrire le test qui le tranchera dès qu'un montage existe. |
 | Les longueurs exactes (patch list, octets neutres, octets de fin de bloc) ne sont pas fermes. | Machine à états. | Ne compter que là où les sources s'accordent ; ailleurs, renvoyer et attendre le marqueur suivant. |
+| Une cartouche qui redémarre en plein transfert bloque la session. | Firmware. | Assumé : `protocol` n'a pas d'horloge. Le lot firmware doit pouvoir détruire une session et en ouvrir une neuve sur détection d'inactivité. |
 | La cartouche simulée reproduit les mêmes erreurs que le sourçage. | Tests. | Assumé et écrit. Seul un montage matériel lèvera ce risque ; le lot firmware apportera des traces réelles, rejouables en test. |
