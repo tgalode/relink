@@ -37,3 +37,23 @@ pub fn bloc_fixture(marqueur: u8) -> TradeBlock {
 pub fn jusqu_a_la_table(session: &mut Session) {
     feed(session, &[0x01, 0x00, 0x60, 0xD4, 0x60, 0xFD]);
 }
+
+/// Amène une session jusqu'à la phase de sélection, le bloc du partenaire
+/// ayant été échangé.
+pub fn jusqu_a_la_selection(session: &mut Session, partenaire: TradeBlock) {
+    jusqu_a_la_table(session);
+    let mut octets = vec![0xFD; 9];
+    octets.extend_from_slice(&[0x2A; 10]);
+    octets.extend_from_slice(&[0xFD; 9]);
+    octets.extend_from_slice(partenaire.as_bytes());
+    octets.extend_from_slice(&[0xDF, 0xFE, 0x15]);
+    octets.extend_from_slice(&[0xFD; 6]);
+    octets.extend_from_slice(&[0x00; 8]);
+    octets.push(0xFF);
+    octets.push(0xFF);
+    // La section de patch list fait 195 octets comptés depuis son premier :
+    // huit d'en-tête, les deux terminateurs, puis le remplissage. On s'arrête
+    // pile à la frontière, pour laisser la phase de sélection intacte.
+    octets.extend(core::iter::repeat_n(0x00, 185));
+    feed(session, &octets);
+}
