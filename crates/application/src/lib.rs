@@ -15,7 +15,11 @@
 //! n'est pas réservé au profil `test` : les tests d'intégration sont des
 //! crates séparés et doivent pouvoir l'importer comme une dépendance
 //! normale.
+//!
+//! Le module [`deposit`] porte le cas d'usage de dépôt : faire entrer un
+//! Pokémon dans le pool.
 
+pub mod deposit;
 pub mod domain;
 pub mod ports;
 pub mod testing;

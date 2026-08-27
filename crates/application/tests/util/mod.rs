@@ -29,6 +29,10 @@ pub fn some_pokemon() -> Pokemon {
 }
 
 /// Une entrée disponible, portant l'identifiant donné.
+///
+/// `#[allow(dead_code)]` : ce module est compilé séparément pour chaque
+/// binaire de test (`mod util;`), et tous ne s'en servent pas.
+#[allow(dead_code)]
 #[must_use]
 pub fn sample_entry(id: EntryId) -> PoolEntry {
     PoolEntry {
