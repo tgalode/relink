@@ -205,7 +205,7 @@ TTL obligatoire : sans lui, un joueur qui ne branche jamais son module gèle le
 pool. À l'expiration l'entrée revient au pool — et c'est le **seul** cas où
 elle revient, puisqu'aucun commit n'a alors jamais été tenté.
 
-### 7.3 L'échange direct : un commit à deux cartouches — **à arbitrer**
+### 7.3 L'échange direct : un commit à deux cartouches
 
 Les §7.1 et §7.2 traitent d'un échange où une seule cartouche s'engage. L'échange
 direct en met deux, et le raisonnement ne s'y transpose pas.
@@ -221,14 +221,14 @@ pas confirmé. C'est un commit en deux phases, où l'état d'attente est la phas
 de préparation. Il réduit la fenêtre à l'intervalle entre les deux
 libérations — il ne la supprime pas.
 
-Deux options, à trancher avant le plan d'implémentation :
+Deux options ont été examinées :
 
 **A — Commit en deux phases.** Les deux modules préparent, le serveur libère
 les deux le plus simultanément possible. Les joueurs échangent vraiment en même
 temps. Fenêtre résiduelle non nulle, et un cas de duplication qui échappe à
 l'arbitrage « on choisit la perte » du §7.1.
 
-**B — Appariement par le pool (recommandé).** L'échange direct n'est pas un
+**B — Appariement par le pool.** L'échange direct n'est pas un
 protocole distinct : c'est un dépôt et un retrait appariés, réservés l'un à
 l'autre. Deux commits indépendants, chacun à une seule cartouche, chacun
 couvert par l'arbitrage déjà validé. **Le commit à deux phases disparaît
@@ -243,9 +243,14 @@ Ce que B ne change pas : le tableau du §2 reste valide, l'équipe du partenaire
 virtuel vient toujours du joueur distant et sa décision est toujours prise en
 différé.
 
-**Recommandation : B.** A ajoute le seul mécanisme du projet capable de
-produire une duplication non arbitrable, pour une simultanéité dont personne
-n'a besoin.
+**Décision : B**, retenue le 2026-08-27. A ajoutait le seul mécanisme du
+projet capable de produire une duplication non arbitrable, pour une
+simultanéité dont personne n'a besoin.
+
+Conséquence pour l'implémentation : il n'existe **aucun** chemin de commit à
+deux cartouches dans le code. `application` ne connaît qu'un seul use case de
+commit, celui du §7, et l'échange direct se réduit à un dépôt et un retrait
+liés par un appariement.
 
 ## 8. Tests
 
