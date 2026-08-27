@@ -18,8 +18,12 @@
 //!
 //! Le module [`deposit`] porte le cas d'usage de dépôt : faire entrer un
 //! Pokémon dans le pool.
+//!
+//! Le module [`reserve`] porte le cas d'usage de réservation : sortir un
+//! Pokémon du pool et le pousser vers le module physique d'un joueur.
 
 pub mod deposit;
 pub mod domain;
 pub mod ports;
+pub mod reserve;
 pub mod testing;
