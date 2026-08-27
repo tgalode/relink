@@ -1,0 +1,266 @@
+//! Les types que le service manipule, indépendants de tout stockage.
+
+use relink_protocol::gen1::{self, PARTY_POKEMON_LEN};
+
+/// Un instant, en millisecondes depuis l'époque Unix.
+///
+/// Le domaine ne lit jamais l'horloge système : le temps entre par le port
+/// [`crate::ports::Clock`]. C'est ce qui rend les scénarios reproductibles.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct Timestamp(u64);
+
+impl Timestamp {
+    /// Construit un instant à partir de millisecondes depuis l'époque Unix.
+    #[must_use]
+    pub const fn from_millis(millis: u64) -> Self {
+        Self(millis)
+    }
+
+    /// Les millisecondes depuis l'époque Unix.
+    #[must_use]
+    pub const fn as_millis(self) -> u64 {
+        self.0
+    }
+
+    /// Avance l'instant, en saturant plutôt qu'en débordant.
+    #[must_use]
+    pub const fn saturating_add_millis(self, millis: u64) -> Self {
+        Self(self.0.saturating_add(millis))
+    }
+}
+
+/// Le dresseur tel que la cartouche le connaît : son nom et son identifiant.
+///
+/// C'est la seule identité que le domaine manipule. Les comptes utilisateurs
+/// sont un problème d'adaptateur et ne remontent pas jusqu'ici.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct TrainerId {
+    /// Nom du dresseur, tel qu'il est stocké sur la cartouche.
+    pub name: gen1::Name,
+    /// Identifiant de dresseur.
+    pub number: u16,
+}
+
+/// Identifiant d'une entrée du pool.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct EntryId(u128);
+
+impl EntryId {
+    /// Construit un identifiant.
+    #[must_use]
+    pub const fn from_u128(value: u128) -> Self {
+        Self(value)
+    }
+    /// La valeur sous-jacente.
+    #[must_use]
+    pub const fn as_u128(self) -> u128 {
+        self.0
+    }
+}
+
+/// Clé d'idempotence d'un dépôt, **émise par le module**.
+///
+/// Le module l'écrit dans son journal en même temps qu'il constate que la
+/// cartouche a cédé le Pokémon, et la rejoue inchangée à chaque tentative. Le
+/// serveur déduplique dessus : un dépôt rejoué dix fois produit une entrée et
+/// une seule.
+///
+/// Elle ne peut pas être frappée côté serveur — elle serait neuve à chaque
+/// tentative, ce qui est exactement ce qui rendait le rejeu dangereux
+/// (spec §7.4).
+///
+/// # Portée d'unicité : globale et pour toujours
+///
+/// La clé doit être unique **tous modules confondus, sans limite de temps** —
+/// pas seulement au sein d'un même module ou d'une même fenêtre de rétention.
+/// Un compteur de journal local partant de 1, l'implémentation réflexe côté
+/// firmware, ferait entrer en collision le premier dépôt de **chaque**
+/// module : le second déposant, parfaitement légitime, verrait son dépôt
+/// silencieusement avalé par [`crate::ports::PoolRepository::insert`], qui ne
+/// peut pas distinguer une collision d'un rejeu légitime — la cartouche ayant
+/// déjà cédé le Pokémon dans les deux cas. Ce n'est pas une duplication (on
+/// choisit toujours la perte, spec §7.1) mais une perte systématique et sans
+/// coupable. La clé doit donc mêler l'identité du module au compteur, ou
+/// tenir dans cent vingt-huit bits tirés au hasard (spec §7.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct DepositId(u128);
+
+impl DepositId {
+    /// Construit une clé d'idempotence de dépôt.
+    #[must_use]
+    pub const fn from_u128(value: u128) -> Self {
+        Self(value)
+    }
+    /// La valeur sous-jacente.
+    #[must_use]
+    pub const fn as_u128(self) -> u128 {
+        self.0
+    }
+}
+
+/// Identifiant d'une réservation.
+///
+/// Émis **avant** que quoi que ce soit ne parte vers le module : c'est la clé
+/// sur laquelle repose toute la déduplication du commit.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct ReservationId(u128);
+
+impl ReservationId {
+    /// Construit un identifiant.
+    #[must_use]
+    pub const fn from_u128(value: u128) -> Self {
+        Self(value)
+    }
+    /// La valeur sous-jacente.
+    #[must_use]
+    pub const fn as_u128(self) -> u128 {
+        self.0
+    }
+}
+
+/// D'où vient un Pokémon : qui l'a déposé, et quand.
+///
+/// Le §6.3 de la spec n'exige qu'un dresseur, pas une chaîne : rien ne lie
+/// une entrée re-déposée à l'entrée précédente, donc rien ne pourrait jamais
+/// alimenter un historique plus long.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Provenance {
+    /// Le dresseur qui l'a déposé dans le pool.
+    pub depositor: TrainerId,
+    /// Quand il a été déposé.
+    pub deposited_at: Timestamp,
+}
+
+/// Un Pokémon tel que le pool le conserve.
+///
+/// Les octets sont gardés à l'identique, comme dans `relink-protocol` : on
+/// stocke ce que la cartouche a envoyé, jamais une reconstruction.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Pokemon {
+    /// Les octets bruts du Pokémon d'équipe.
+    pub bytes: [u8; PARTY_POKEMON_LEN],
+    /// Son surnom, tel que stocké sur la cartouche d'origine.
+    pub nickname: gen1::Name,
+    /// Le nom de son dresseur d'origine.
+    pub original_trainer: gen1::Name,
+}
+
+/// Où en est une entrée du pool.
+///
+/// Une entrée quitte l'état [`EntryState::Available`] à la **réservation**, pas
+/// au commit : sinon deux joueurs pourraient réserver la même. Elle n'y revient
+/// que par expiration, et jamais après qu'un commit a été tenté.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EntryState {
+    /// Dans le pool, personne ne l'a réservée.
+    Available,
+    /// Réservée, en attente d'être remise à une cartouche.
+    Reserved {
+        /// La réservation qui la tient.
+        reservation: ReservationId,
+        /// Au-delà de cet instant, l'entrée retourne au pool — **mais seulement
+        /// si aucun module n'en a accusé réception**.
+        expires_at: Timestamp,
+        /// Un module a-t-il accusé réception de cette réservation ?
+        ///
+        /// Tant que c'est faux, rien n'a pu atteindre une cartouche et
+        /// l'expiration est sûre. Dès que c'est vrai, l'entrée ne revient plus
+        /// jamais au pool toute seule : une fois la réservation parvenue au
+        /// module, un module hors ligne ayant déjà remis le Pokémon à la
+        /// cartouche est indiscernable d'un module hors ligne qui ne l'a pas
+        /// encore remis. Le serveur ne peut donc pas trancher sans risquer une
+        /// duplication, et l'entrée reste bloquée jusqu'à ce que le module
+        /// parle.
+        delivered: bool,
+    },
+    /// Remise à une cartouche, confirmée par le module.
+    Committed {
+        /// La réservation qui l'a consommée.
+        reservation: ReservationId,
+        /// Quand le commit a été enregistré.
+        at: Timestamp,
+    },
+    /// Un commit a été tenté sans qu'on sache s'il a abouti.
+    ///
+    /// L'entrée reste consommée : c'est l'arbitrage de la spec §7.1, où l'on
+    /// choisit la perte plutôt que le risque de duplication. Un traitement de
+    /// litige manuel, hors périmètre, s'appuiera sur cet état.
+    Abandoned {
+        /// La réservation concernée.
+        reservation: ReservationId,
+        /// Quand l'ambiguïté a été constatée.
+        at: Timestamp,
+    },
+}
+
+impl EntryState {
+    /// La réservation qui gouverne cet état, s'il y en a une.
+    #[must_use]
+    pub const fn reservation(&self) -> Option<ReservationId> {
+        match self {
+            Self::Available => None,
+            Self::Reserved { reservation, .. }
+            | Self::Committed { reservation, .. }
+            | Self::Abandoned { reservation, .. } => Some(*reservation),
+        }
+    }
+}
+
+/// Un Pokémon déposé dans le pool, avec son état et sa provenance.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PoolEntry {
+    /// Son identifiant.
+    pub id: EntryId,
+    /// La clé d'idempotence du dépôt qui l'a créée (spec §7.4).
+    pub deposit: DepositId,
+    /// Le Pokémon lui-même.
+    pub pokemon: Pokemon,
+    /// D'où il vient.
+    pub provenance: Provenance,
+    /// Où il en est.
+    pub state: EntryState,
+    /// À qui cette offre est réservée, s'il y a lieu (spec §7.3).
+    ///
+    /// `None` pour un dépôt ordinaire : l'offre est ouverte à tout le
+    /// monde. `Some(trainer)` pour une offre d'échange direct : seul ce
+    /// dresseur peut la réserver — voir
+    /// [`crate::domain::PoolEntry::is_offered_to`], que [`crate::reserve::Reserve::execute`]
+    /// applique avant toute réservation. `list_claimable()` continue de
+    /// rendre l'entrée à tout le monde : c'est un adaptateur, filtrant avec
+    /// ce prédicat, qui restreint ce qu'un dresseur voit comme prenable.
+    /// L'échange direct n'est pas un protocole séparé — c'est ce champ qui
+    /// distingue un dépôt d'une offre, rien d'autre : voir
+    /// [`crate::pairing::OfferDirectTrade`].
+    ///
+    /// Immuable une fois l'entrée créée : aucune opération de ce crate ne le
+    /// modifie après [`crate::ports::PoolRepository::insert`], ce qui permet
+    /// de le lire puis d'agir sur l'entrée sans fenêtre de course sur ce
+    /// champ précis — c'est ce que [`crate::reserve::Reserve::execute`]
+    /// exploite pour contrôler l'exclusivité avant `claim`.
+    pub reserved_for: Option<TrainerId>,
+}
+
+impl PoolEntry {
+    /// Vrai si cette entrée peut encore être réservée par quelqu'un.
+    #[must_use]
+    pub const fn is_claimable(&self) -> bool {
+        matches!(self.state, EntryState::Available)
+    }
+
+    /// Vrai si cette offre est visible par ce dresseur : soit elle est
+    /// ouverte à tout le monde (`reserved_for` vaut `None`), soit elle le
+    /// désigne nommément.
+    ///
+    /// Ceci n'est qu'un prédicat, pas une requête : le filtrage effectif du
+    /// pool par destinataire — ne renvoyer à un appelant que les entrées qui
+    /// lui sont offertes — est une affaire d'adaptateur, qui applique ce
+    /// prédicat sur la liste rendue par
+    /// [`crate::ports::PoolRepository::list_claimable`].
+    #[must_use]
+    pub fn is_offered_to(&self, trainer: &TrainerId) -> bool {
+        match &self.reserved_for {
+            None => true,
+            Some(reserved) => reserved == trainer,
+        }
+    }
+}

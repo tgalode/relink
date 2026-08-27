@@ -59,3 +59,69 @@ fn l_espece_est_verifiee_avant_les_capacites() {
     let refus = eligible_for_gen1(&pokemon(0x1F, [LAST_GEN1_MOVE_ID + 1, 0, 0, 0]));
     assert_eq!(refus, Err(Ineligible::UnknownSpecies));
 }
+
+use relink_protocol::gen1::{PARTY_CAPACITY, TRADE_BLOCK_LEN, TradeBlock};
+use relink_protocol::time_capsule::first_ineligible_in_party;
+
+/// Les décalages viennent de `docs/protocol/gen1-trade-block.md`.
+const OFF_PARTY_LIST: usize = 11;
+const OFF_PARTY_DATA: usize = 19;
+const PARTY_POKEMON: usize = 44;
+
+/// Un bloc dont l'équipe compte `count` Pokémon, tous d'espèce `species`,
+/// et dont le Pokémon à `bad_slot` connaît une capacité trop récente.
+fn party(count: u8, species: u8, bad_slot: Option<usize>) -> TradeBlock {
+    let mut raw = [0u8; TRADE_BLOCK_LEN];
+    raw[OFF_PARTY_LIST] = count;
+    for i in 0..count as usize {
+        let base = OFF_PARTY_DATA + i * PARTY_POKEMON;
+        raw[base] = species;
+        raw[base + 0x08] = 1;
+        if bad_slot == Some(i) {
+            raw[base + 0x09] = 200; // postérieure à la Gen 1
+        }
+    }
+    TradeBlock::from_bytes(raw)
+}
+
+/// Espèce valide en Gen 1 selon `docs/protocol/gen1-species-index.md`.
+const MEW: u8 = 0x15;
+
+#[test]
+fn une_equipe_entierement_eligible_ne_rend_rien() {
+    assert_eq!(first_ineligible_in_party(&party(3, MEW, None)), None);
+}
+
+#[test]
+fn une_equipe_vide_ne_rend_rien() {
+    assert_eq!(first_ineligible_in_party(&party(0, MEW, None)), None);
+}
+
+#[test]
+fn rend_la_position_du_premier_fautif() {
+    let (slot, _) = first_ineligible_in_party(&party(4, MEW, Some(2))).expect("un fautif");
+    assert_eq!(slot, 2);
+}
+
+#[test]
+fn rend_le_premier_fautif_et_pas_un_suivant() {
+    let block = party(4, MEW, Some(3));
+    let mut raw = *block.as_bytes();
+    raw[OFF_PARTY_DATA + PARTY_POKEMON + 0x09] = 200;
+    let (slot, _) = first_ineligible_in_party(&TradeBlock::from_bytes(raw)).expect("un fautif");
+    assert_eq!(slot, 1, "c'est le premier fautif qui doit être rendu");
+}
+
+#[test]
+fn n_examine_jamais_au_dela_de_l_equipe_annoncee() {
+    // Une équipe de 1, mais des octets fautifs dans les emplacements suivants.
+    let block = party(1, MEW, None);
+    let mut raw = *block.as_bytes();
+    for i in 1..PARTY_CAPACITY {
+        raw[OFF_PARTY_DATA + i * PARTY_POKEMON + 0x09] = 200;
+    }
+    assert_eq!(
+        first_ineligible_in_party(&TradeBlock::from_bytes(raw)),
+        None
+    );
+}

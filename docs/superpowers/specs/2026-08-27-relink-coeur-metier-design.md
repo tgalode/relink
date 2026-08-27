@@ -160,7 +160,9 @@ Trois seulement, l'évolution ne remontant pas jusqu'ici :
 ### 6.2 Ports déclarés
 
 `PoolRepository`, `LegalityChecker` (PKHeX.Core derrière), `ModuleTransport`
-(MQTT), `Clock`, `Notifier`.
+(MQTT), `Clock`, `Notifier`, et `IdSource` — ce dernier ajouté à
+l'implémentation : le domaine ne tire jamais d'aléa lui-même, pas plus qu'il ne
+lit l'horloge, et c'est ce qui rend le test d'invariant reproductible.
 
 Aucun n'a d'implémentation dans ce lot. C'est le principe.
 
@@ -170,12 +172,17 @@ Le dresseur, c'est-à-dire le nom OT et l'identifiant de dresseur lus sur la
 cartouche. Suffisant pour établir la provenance. Les comptes utilisateurs sont
 un problème d'adaptateur et ne remontent pas dans le cœur.
 
-## 7. Le commit : le seul endroit où l'on peut détruire des données
+## 7. Le commit : là où l'on peut détruire des données
 
 Un échange se conclut **physiquement** sur la cartouche. Il n'y a pas de
 rollback : une fois l'animation passée, le Pokémon est dans la sauvegarde, que
 le serveur l'ait su ou non. C'est une transaction distribuée dont l'un des
 participants ne sait pas annuler.
+
+Le titre de cette section disait initialement « le **seul** endroit où l'on peut
+détruire des données ». Le §7.4, écrit plus tard, l'a démenti : au dépôt aussi
+la cartouche perd le Pokémon irréversiblement. Le commit reste l'endroit le plus
+dangereux, il n'est pas le seul.
 
 La réponse tient en trois pièces :
 
@@ -287,6 +294,60 @@ Conséquence pour l'implémentation : il n'existe **aucun** chemin de commit à
 deux cartouches dans le code. `application` ne connaît qu'un seul use case de
 commit, celui du §7, et l'échange direct se réduit à un dépôt et un retrait
 liés par un appariement.
+
+### 7.4 L'autre direction : le dépôt
+
+**Ajouté le 2026-08-27, après relecture adversariale des contrats de ports.**
+Tout ce qui précède protège la direction **retrait** : identifiant émis avant
+que quoi que ce soit ne parte, journal d'intention côté module, déduplication
+par cet identifiant. La direction **dépôt** n'était protégée par rien — alors
+que la cartouche y perd le Pokémon tout aussi irréversiblement.
+
+Le scénario, sans aucune faute d'implémentation :
+
+1. La cartouche cède le Mew. L'animation est passée, la sauvegarde ne l'a plus.
+2. Le module journalise et publie le dépôt.
+3. Le serveur crée l'entrée et la commite en base. **L'acquittement se perd.**
+4. Le module rejoue son journal, exactement comme il rejoue un commit.
+5. Le serveur crée une **seconde** entrée, avec un identifiant neuf.
+6. Deux joueurs les réservent. Deux cartouches reçoivent le Mew. Duplication.
+
+**La règle : qui agit le premier émet l'identifiant.**
+
+C'est la formulation générale dont le §7 point 1 n'était qu'un cas particulier.
+Au retrait, c'est le serveur qui agit le premier — il réserve avant que rien ne
+parte — donc c'est lui qui émet l'identifiant. Au dépôt, c'est le **module**
+qui agit le premier : la cartouche a déjà cédé le Pokémon quand le serveur
+apprend son existence. C'est donc au module d'émettre l'identifiant, en même
+temps qu'il écrit son entrée de journal, et de le rejouer inchangé à chaque
+tentative.
+
+Le serveur déduplique dessus. Un dépôt rejoué dix fois produit une entrée et
+une seule, et rend la même que la première fois.
+
+Un identifiant frappé côté serveur ne peut pas jouer ce rôle : par
+construction, il est neuf à chaque tentative. C'est précisément ce qui rendait
+le rejeu dangereux.
+
+**La clé ne s'oublie jamais.** La fenêtre de rejeu d'un module n'est pas
+bornée — c'est la prémisse même du §7.2, un module peut dormir des mois dans un
+tiroir. Une déduplication adossée à la seule existence de l'entrée serait donc
+défaite par une politique de rétention ordinaire : purger les entrées tranchées
+au bout de quatre-vingt-dix jours suffirait à faire renaître le dépôt d'un
+Pokémon déjà remis à quelqu'un d'autre. Ce qui doit survivre, c'est le registre
+des clés, pas l'entrée.
+
+Asymétrie à noter : seule la direction dépôt est critique à cet égard. Un commit
+rejoué après purge ne trouve plus sa réservation et ne rend rien au pool — c'est
+une perte, pas une duplication.
+
+**La clé est unique globalement et pour toujours**, tous modules confondus. Un
+compteur de journal local partant de 1 — l'implémentation réflexe côté firmware —
+ferait entrer en collision le premier dépôt de chaque module. Le serveur ne peut
+pas distinguer une collision d'un rejeu : il avalerait silencieusement un dépôt
+légitime, la cartouche ayant déjà cédé son Pokémon. C'est une perte systématique
+et sans coupable. La clé doit donc mêler l'identité du module au compteur, ou
+tenir dans cent vingt-huit bits tirés au hasard.
 
 ## 8. Tests
 
