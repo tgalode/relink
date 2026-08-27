@@ -15,3 +15,4 @@
 
 pub mod gen1;
 pub mod text;
+pub mod time_capsule;
