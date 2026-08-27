@@ -15,7 +15,9 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use crate::domain::{EntryId, EntryState, Pokemon, PoolEntry, ReservationId, Timestamp, TrainerId};
+use crate::domain::{
+    DepositId, EntryId, EntryState, Pokemon, PoolEntry, ReservationId, Timestamp, TrainerId,
+};
 use crate::ports::{
     ClaimOutcome, Clock, CommitOutcome, IdSource, LegalityChecker, ModuleId, ModuleTransport,
     Notifier, PoolRepository, PortError,
@@ -124,7 +126,16 @@ struct PoolState {
     /// Le registre `DepositId -> EntryId`, distinct du cycle de vie des
     /// entrées et jamais oublié : c'est lui qui porte la déduplication de
     /// [`PoolRepository::insert`], pas la survie de la ligne.
-    deposit_registry: HashMap<crate::domain::DepositId, EntryId>,
+    deposit_registry: HashMap<DepositId, EntryId>,
+    /// L'image inverse de `deposit_registry` (`EntryId -> DepositId`),
+    /// tenue à jour dans le même geste qu'elle. Elle porte la garde contre
+    /// la réutilisation d'un `EntryId` déjà enregistré sous une autre clé
+    /// de dépôt — voir [`PoolRepository::insert`] — sans interroger
+    /// `entries`, pour que cette garde reste correcte même si une future
+    /// doublure venait à purger la table des entrées : `entries` pourrait
+    /// alors oublier un identifiant que le registre durable n'oublie
+    /// jamais.
+    entry_deposit: HashMap<EntryId, DepositId>,
     /// L'entrée que tient chaque réservation au moment où elle a été posée.
     /// Reste en place même après que la réservation a été tranchée ou a
     /// expiré : c'est ce qui permet de distinguer un rejeu tardif d'une
@@ -152,6 +163,7 @@ impl InMemoryPool {
             state: Mutex::new(PoolState {
                 entries: HashMap::new(),
                 deposit_registry: HashMap::new(),
+                entry_deposit: HashMap::new(),
                 reservation_entry: HashMap::new(),
                 failures: FailQueue::default(),
             }),
@@ -189,6 +201,14 @@ impl Default for InMemoryPool {
 /// [`PoolRepository`]) : le premier des deux appels rend
 /// [`CommitOutcome::Recorded`] et fixe l'issue, tout appel ultérieur de l'un
 /// ou l'autre rend [`CommitOutcome::AlreadyRecorded`] sans rien modifier.
+///
+/// Volontairement proche de la logique de
+/// [`PoolRepository::record_delivery`] sans être factorisée avec elle : les
+/// deux répondent à la même question — que dit l'état actuel de cette
+/// réservation ? — mais leurs verdicts et leurs effets divergent assez
+/// (`delivered` plutôt que `Committed`/`Abandoned`, un `Unknown` qui ne
+/// recouvre pas les mêmes cas) pour qu'une factorisation prématurée nuise
+/// plus à la lecture qu'elle n'aide.
 fn decide(
     state: &mut PoolState,
     reservation: ReservationId,
@@ -237,13 +257,14 @@ impl PoolRepository for InMemoryPool {
         if let Some(&existing) = state.deposit_registry.get(&entry.deposit) {
             return Ok(existing);
         }
-        if state.entries.contains_key(&entry.id) {
+        if state.entry_deposit.contains_key(&entry.id) {
             return Err(PortError::new(
                 "identifiant d'entrée déjà enregistré sous une autre clé de dépôt",
             ));
         }
         let id = entry.id;
         state.deposit_registry.insert(entry.deposit, id);
+        state.entry_deposit.insert(id, entry.deposit);
         state.entries.insert(id, entry);
         Ok(id)
     }
