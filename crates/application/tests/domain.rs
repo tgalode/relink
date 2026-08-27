@@ -8,11 +8,12 @@ fn at(ms: u64) -> Timestamp {
 }
 
 fn entry(state: EntryState) -> PoolEntry {
-    use relink_application::domain::{Pokemon, Provenance, TrainerId};
+    use relink_application::domain::{DepositId, Pokemon, Provenance, TrainerId};
     use relink_protocol::gen1::Name;
     let name = Name::from_bytes([0x50; NAME_LEN]);
     PoolEntry {
         id: EntryId::from_u128(1),
+        deposit: DepositId::from_u128(1),
         pokemon: Pokemon {
             bytes: [0u8; PARTY_POKEMON_LEN],
             nickname: name,

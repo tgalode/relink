@@ -58,6 +58,32 @@ impl EntryId {
     }
 }
 
+/// Clé d'idempotence d'un dépôt, **émise par le module**.
+///
+/// Le module l'écrit dans son journal en même temps qu'il constate que la
+/// cartouche a cédé le Pokémon, et la rejoue inchangée à chaque tentative. Le
+/// serveur déduplique dessus : un dépôt rejoué dix fois produit une entrée et
+/// une seule.
+///
+/// Elle ne peut pas être frappée côté serveur — elle serait neuve à chaque
+/// tentative, ce qui est exactement ce qui rendait le rejeu dangereux
+/// (spec §7.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+pub struct DepositId(u128);
+
+impl DepositId {
+    /// Construit une clé d'idempotence de dépôt.
+    #[must_use]
+    pub const fn from_u128(value: u128) -> Self {
+        Self(value)
+    }
+    /// La valeur sous-jacente.
+    #[must_use]
+    pub const fn as_u128(self) -> u128 {
+        self.0
+    }
+}
+
 /// Identifiant d'une réservation.
 ///
 /// Émis **avant** que quoi que ce soit ne parte vers le module : c'est la clé
@@ -169,6 +195,8 @@ impl EntryState {
 pub struct PoolEntry {
     /// Son identifiant.
     pub id: EntryId,
+    /// La clé d'idempotence du dépôt qui l'a créée (spec §7.4).
+    pub deposit: DepositId,
     /// Le Pokémon lui-même.
     pub pokemon: Pokemon,
     /// D'où il vient.
