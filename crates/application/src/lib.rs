@@ -26,10 +26,16 @@
 //! réservation, une fois pour toutes. C'est le seul endroit du service où
 //! l'on peut détruire des données irremplaçables — voir la documentation du
 //! module avant d'y toucher.
+//!
+//! Le module [`expiry`] porte le cas d'usage d'expiration : le seul chemin
+//! du service qui rend une entrée au pool, et seulement pour une
+//! réservation jamais parvenue à un module — voir la documentation du
+//! module avant d'y toucher.
 
 pub mod commit;
 pub mod deposit;
 pub mod domain;
+pub mod expiry;
 pub mod ports;
 pub mod reserve;
 pub mod testing;
