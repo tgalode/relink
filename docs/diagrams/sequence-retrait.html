@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retrait du pool</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+    .frame { max-width: 1200px; width: 100%; }
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+    svg { width: 100%; min-width: 900px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Séquence · relink · parcours 3 sur 4</p>
+    <h1>Retrait du pool — le joueur choisit à l'avance, l'échange ne fait que livrer</h1>
+
+    <svg viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="relink-sequence-retrait-title relink-sequence-retrait-desc">
+      <title id="relink-sequence-retrait-title">Retrait du pool</title>
+      <desc id="relink-sequence-retrait-desc">Séquence d'un retrait : le joueur réserve un Pokémon depuis l'application mobile, le service pose une réservation à échéance et la pousse au module, l'échange a lieu sur la cartouche, puis le service retire l'entrée du pool, journalise la provenance et notifie le joueur.</desc>
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
+        <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
+        <marker id="arrow-open" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polyline points="0 0, 8 3, 0 6" fill="none" stroke="#4f5d75" stroke-width="1.2"/></marker>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+      <!-- Lifelines -->
+      <line x1="120" y1="144" x2="120" y2="568" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="360" y1="144" x2="360" y2="568" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="600" y1="144" x2="600" y2="568" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+      <line x1="840" y1="144" x2="840" y2="568" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="3,3"/>
+
+      <!-- Messages -->
+      <line x1="120" y1="184" x2="360" y2="184" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="184" y="164" width="112" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="240" y="172" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RÉSERVE · HTTP</text>
+
+      <!-- Self : la réservation, avec son échéance -->
+      <path d="M 364,220 H 396 Q 404,220 404,228 V 244 Q 404,252 396,252 H 368"
+            fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="416" y="224" width="152" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="416" y="232" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">RÉSERVE · AVEC ÉCHÉANCE</text>
+
+      <line x1="360" y1="292" x2="120" y2="292" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <rect x="176" y="272" width="128" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="240" y="280" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">RÉSERVATION TENUE</text>
+
+      <line x1="360" y1="328" x2="600" y2="328" stroke="rgba(45,49,66,0.35)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-open)"/>
+      <rect x="408" y="308" width="144" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="316" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LA RÉSERVATION · MQTT</text>
+
+      <line x1="600" y1="364" x2="840" y2="364" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="648" y="344" width="144" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="720" y="352" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">BLOC · LE POKÉMON DÛ</text>
+
+      <line x1="840" y1="400" x2="600" y2="400" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="648" y="380" width="144" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="720" y="388" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">0x60+i · POKÉMON CÉDÉ</text>
+
+      <line x1="600" y1="436" x2="840" y2="436" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <rect x="664" y="416" width="112" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="720" y="424" fill="#eb6c36" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">0x62 · ACCORD</text>
+
+      <line x1="600" y1="472" x2="360" y2="472" stroke="rgba(45,49,66,0.35)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-open)"/>
+      <rect x="408" y="452" width="144" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="480" y="460" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ÉCHANGE CONCLU · MQTT</text>
+
+      <!-- Self : le commit, et ce qu'il enregistre -->
+      <path d="M 364,508 H 396 Q 404,508 404,516 V 532 Q 404,540 396,540 H 368"
+            fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <rect x="416" y="512" width="168" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="416" y="520" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">RETIRE DU POOL · PROVENANCE</text>
+
+      <line x1="360" y1="568" x2="120" y2="568" stroke="rgba(45,49,66,0.35)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-open)"/>
+      <rect x="200" y="548" width="80" height="12" rx="2" fill="#f5f5f5"/>
+      <text x="240" y="556" fill="#7a8399" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.06em">NOTIFIÉ</text>
+
+      <!-- Acteurs -->
+      <rect x="40" y="88" width="160" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="40" y="88" width="160" height="56" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="120" y="116" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Mobile</text>
+      <text x="120" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">le joueur</text>
+
+      <rect x="280" y="88" width="160" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="280" y="88" width="160" height="56" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+      <text x="360" y="116" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Service</text>
+      <text x="360" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">application · pool</text>
+
+      <rect x="520" y="88" width="160" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="520" y="88" width="160" height="56" rx="6" fill="rgba(45,49,66,0.02)" stroke="rgba(45,49,66,0.20)" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="600" y="116" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Module</text>
+      <text x="600" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">firmware · protocol</text>
+
+      <rect x="760" y="88" width="160" height="56" rx="6" fill="#f5f5f5"/>
+      <rect x="760" y="88" width="160" height="56" rx="6" fill="rgba(45,49,66,0.03)" stroke="rgba(45,49,66,0.30)" stroke-width="1"/>
+      <text x="840" y="116" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Cartouche</text>
+      <text x="840" y="132" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">Rouge/Bleu/Jaune</text>
+
+      <!-- Légende -->
+      <line x1="32" y1="592" x2="928" y2="592" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+      <text x="32" y="616" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">LÉGENDE</text>
+
+      <line x1="136" y1="612" x2="168" y2="612" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+      <text x="180" y="616" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">APPEL</text>
+
+      <line x1="300" y1="612" x2="332" y2="612" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+      <text x="344" y="616" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">RÉPONSE</text>
+
+      <line x1="480" y1="612" x2="512" y2="612" stroke="rgba(45,49,66,0.35)" stroke-width="1" stroke-dasharray="4,3" marker-end="url(#arrow-open)"/>
+      <text x="524" y="616" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">ASYNCHRONE</text>
+
+      <line x1="680" y1="612" x2="712" y2="612" stroke="#eb6c36" stroke-width="1.2" marker-end="url(#arrow-accent)"/>
+      <text x="724" y="616" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">L'ÉCHANGE EST CONCLU</text>
+    </svg>
+  </div>
+</body>
+</html>
