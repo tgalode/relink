@@ -1,0 +1,20 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "createdAt": "2026-08-27T22:19:43.756Z",
+        "reason": "Charte du plugin diagram-design, style par défaut retenu pour le dépôt"
+      },
+      {
+        "rule": "overused-font",
+        "value": "geist",
+        "createdAt": "2026-08-27T22:19:43.797Z",
+        "reason": "Charte du plugin diagram-design, style par défaut retenu pour le dépôt"
+      }
+    ]
+  }
+}
