@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Une poussée qui en remplace une autre annule la précédente.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # `missing_docs` est en avertissement au niveau du workspace : sans ceci,
+  # une documentation manquante passerait la CI sans bruit.
+  RUSTDOCFLAGS: -D warnings
+
+jobs:
+  verifications:
+    name: Vérifications
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer la chaîne d'outils
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+          # `relink-protocol` doit tenir sans allocateur : cette cible refuse
+          # de lier si quoi que ce soit en réclame un.
+          rustup target add thumbv7em-none-eabihf
+          rustc --version && cargo --version
+
+      - name: Format
+        run: cargo fmt --all --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test --workspace
+
+      - name: Documentation
+        run: cargo doc --workspace --no-deps
+
+      - name: Cible embarquée sans allocateur
+        run: cargo build -p relink-protocol --target thumbv7em-none-eabihf
+
+      # La table des 151 espèces est générée depuis un document sourcé, pas
+      # transcrite à la main. Ce contrôle vérifie qu'elle n'a pas dérivé de sa
+      # source — le seul écart qu'aucun test Rust ne peut détecter, puisque les
+      # tests vérifient la complétude et l'absence de doublon, jamais
+      # l'exactitude d'une paire index / espèce.
+      # Hors ligne : `crosscheck`, qui télécharge la seconde source, reste
+      # volontairement manuel pour ne pas rendre la CI dépendante d'un tiers.
+      - name: Table d'espèces conforme à sa source
+        run: |
+          sed -n '/^const INDEX_TO_DEX/,/^];/p' \
+            crates/protocol/src/gen1/species.rs > /tmp/committed.rs
+          python3 tools/gen_species_table.py extract \
+            | sed -n '/^const INDEX_TO_DEX/,/^];/p' > /tmp/regenerated.rs
+          diff -u /tmp/committed.rs /tmp/regenerated.rs

@@ -1,5 +1,7 @@
 # relink
 
+[![CI](https://github.com/tgalode/relink/actions/workflows/ci.yml/badge.svg)](https://github.com/tgalode/relink/actions/workflows/ci.yml)
+
 Rendre leurs échanges aux joueurs des Pokémon Game Boy et Game Boy Color.
 
 Un module se branche sur le port link de la console et se fait passer pour un
