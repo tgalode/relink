@@ -48,5 +48,6 @@ pub fn sample_entry(id: EntryId) -> PoolEntry {
             previous: Vec::new(),
         },
         state: EntryState::Available,
+        reserved_for: None,
     }
 }

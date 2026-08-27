@@ -25,6 +25,7 @@ fn entry(state: EntryState) -> PoolEntry {
             previous: Vec::new(),
         },
         state,
+        reserved_for: None,
     }
 }
 

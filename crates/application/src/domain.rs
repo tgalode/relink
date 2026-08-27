@@ -217,6 +217,19 @@ pub struct PoolEntry {
     pub provenance: Provenance,
     /// Où il en est.
     pub state: EntryState,
+    /// À qui cette offre est réservée, s'il y a lieu (spec §7.3).
+    ///
+    /// `None` pour un dépôt ordinaire : l'offre est ouverte à tout le
+    /// monde. `Some(trainer)` pour une offre d'échange direct : seul ce
+    /// dresseur peut la voir comme prenable. L'échange direct n'est pas un
+    /// protocole séparé — c'est ce champ qui distingue un dépôt d'une offre,
+    /// rien d'autre : voir [`crate::pairing::OfferDirectTrade`].
+    ///
+    /// Immuable une fois l'entrée créée : aucune opération de ce crate ne le
+    /// modifie après [`crate::ports::PoolRepository::insert`], ce qui permet
+    /// de le lire puis d'agir sur l'entrée sans fenêtre de course sur ce
+    /// champ précis.
+    pub reserved_for: Option<TrainerId>,
 }
 
 impl PoolEntry {
@@ -224,5 +237,22 @@ impl PoolEntry {
     #[must_use]
     pub const fn is_claimable(&self) -> bool {
         matches!(self.state, EntryState::Available)
+    }
+
+    /// Vrai si cette offre est visible par ce dresseur : soit elle est
+    /// ouverte à tout le monde (`reserved_for` vaut `None`), soit elle le
+    /// désigne nommément.
+    ///
+    /// Ceci n'est qu'un prédicat, pas une requête : le filtrage effectif du
+    /// pool par destinataire — ne renvoyer à un appelant que les entrées qui
+    /// lui sont offertes — est une affaire d'adaptateur, qui applique ce
+    /// prédicat sur la liste rendue par
+    /// [`crate::ports::PoolRepository::list_claimable`].
+    #[must_use]
+    pub fn is_offered_to(&self, trainer: &TrainerId) -> bool {
+        match &self.reserved_for {
+            None => true,
+            Some(reserved) => reserved == trainer,
+        }
     }
 }

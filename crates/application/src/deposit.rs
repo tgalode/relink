@@ -34,6 +34,14 @@ pub enum DepositError {
     /// le dépôt ignore. Elle appartient au cas d'usage de retrait.
     #[error("le Pokémon n'est pas éligible ({0})")]
     Ineligible(usize),
+    /// Une offre d'échange direct se désigne elle-même comme destinataire.
+    ///
+    /// Distincte de [`Self::Illegal`] à dessein : un Pokémon parfaitement
+    /// légal offert à soi-même n'est pas un problème de légalité, c'est un
+    /// échange qui n'en est pas un — voir
+    /// [`crate::pairing::OfferDirectTrade`].
+    #[error("une offre directe ne peut pas se cibler elle-même")]
+    SelfOffer,
     /// Une panne du monde extérieur — voir [`PortError`].
     #[error(transparent)]
     Port(#[from] PortError),
@@ -87,6 +95,22 @@ where
     /// Pokémon, avant toute écriture. [`DepositError::Port`] si un port
     /// échoue.
     pub async fn execute(&self, request: DepositRequest) -> Result<EntryId, DepositError> {
+        self.execute_reserved(request, None).await
+    }
+
+    /// Le même chemin que [`Self::execute`], mais avec une réservation de
+    /// destinataire optionnelle posée sur l'entrée créée.
+    ///
+    /// Partagé avec [`crate::pairing::OfferDirectTrade`] : la spec §7.3 fait
+    /// de l'échange direct un dépôt ordinaire dont la seule différence est ce
+    /// `reserved_for`, jamais un chemin de code séparé. `pub(crate)` : ce
+    /// n'est pas une entrée publique du cas d'usage de dépôt, seulement le
+    /// point de partage interne au crate.
+    pub(crate) async fn execute_reserved(
+        &self,
+        request: DepositRequest,
+        reserved_for: Option<TrainerId>,
+    ) -> Result<EntryId, DepositError> {
         if !self.legality.is_legal(&request.pokemon).await? {
             return Err(DepositError::Illegal);
         }
@@ -104,6 +128,7 @@ where
                 previous: Vec::new(),
             },
             state: EntryState::Available,
+            reserved_for,
         };
 
         let stored_id = self.pool.insert(entry).await?;

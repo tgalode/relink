@@ -31,11 +31,16 @@
 //! du service qui rend une entrée au pool, et seulement pour une
 //! réservation jamais parvenue à un module — voir la documentation du
 //! module avant d'y toucher.
+//!
+//! Le module [`pairing`] porte le cas d'usage d'échange direct : un dépôt
+//! réservé à un destinataire, apparié à un retrait ordinaire. Ce n'est pas
+//! un protocole séparé — voir la documentation du module avant d'y toucher.
 
 pub mod commit;
 pub mod deposit;
 pub mod domain;
 pub mod expiry;
+pub mod pairing;
 pub mod ports;
 pub mod reserve;
 pub mod testing;
