@@ -120,6 +120,10 @@ réveille la session quand la réponse arrive.
 Ce mécanisme rend l'échange direct possible et ne coûte rien aux trois autres
 parcours, qui n'attendent jamais.
 
+L'octet de remplissage n'est plus une hypothèse : c'est `0x00`, celui que la
+cartouche elle-même émet en boucle pendant la phase de sélection, et qu'elle
+accepte sans échéance. Sourcé dans `docs/protocol/gen1-link-protocol.md`.
+
 ### 5.3 Générations
 
 Dispatch par `enum Generation { One, Two }` et `match` — pas de trait objet,
@@ -393,6 +397,6 @@ l'adaptateur Mobile GBC, la détection de triche, le traitement des litiges.
 
 | Risque | Portée | Traitement |
 |---|---|---|
-| Les valeurs d'octets exactes du handshake et de la phase de sélection ne sont pas connues à ce jour. | Elles conditionnent le mécanisme d'attente du §5.2 : s'il s'avérait qu'aucun octet de remplissage n'est toléré, l'échange direct devrait être repensé. | Établies par rétro-ingénierie et sourcées une par une avant l'implémentation de la machine à états. C'est le seul endroit où ce design peut devoir bouger. |
+| ~~Les valeurs d'octets exactes du handshake et de la phase de sélection ne sont pas connues à ce jour.~~ **Levé.** | Elles conditionnaient le mécanisme d'attente du §5.2 : s'il s'était avéré qu'aucun octet de remplissage n'est toléré, l'échange direct aurait dû être repensé. | Sourcées une par une dans `docs/protocol/gen1-link-protocol.md`, trois sources indépendantes. Le remplissage existe, le design ne bouge pas. Restent deux points probables — longueur transmise de la patch list, octets de fin de bloc — et un conflit de sources sur l'étendue de la zone couverte par la patch list, tous trois documentés et sans effet sur l'architecture. |
 | Le format exact du bloc Gen 2, courrier inclus. | Codec Gen 2 uniquement. | Idem ; le courrier étant transporté opaque, seul son décalage et sa taille importent. |
 | Contrainte temps réel non tenue sur la cible embarquée. | Firmware. | Le style du §5.1 (O(1), sans allocation) est précisément ce qui rend la contrainte vérifiable ; à mesurer lors du lot firmware. |

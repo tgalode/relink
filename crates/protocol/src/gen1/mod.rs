@@ -1,5 +1,7 @@
 //! Formats de la première génération : Rouge, Bleu, Jaune.
 
+pub mod patch_list;
+
 mod party_pokemon;
 mod species;
 mod trade_block;
