@@ -88,7 +88,7 @@ fn une_equipe_rearmee_est_celle_qui_part_au_second_echange() {
             Some(Effect::OfferNeeded) => session.supply(Decision::Offer(0)),
             Some(Effect::VerdictNeeded) => session.supply(Decision::Accept),
             Some(Effect::TradeAgreed { .. }) => {
-                session.supply(Decision::Party(bloc_fixture(0xC0)));
+                session.rearm(bloc_fixture(0xC0));
                 rearme = true;
             }
             _ => {}

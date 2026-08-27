@@ -106,6 +106,9 @@ impl Session {
     /// L'équipe du partenaire, dès que `PartnerBlockReceived` a été émis.
     /// Rendue par copie — 415 octets, hors du chemin critique de l'octet.
     pub fn partner_block(&self) -> Option<TradeBlock>;
+
+    /// Recharge l'équipe présentée, entre deux échanges.
+    pub fn rearm(&mut self, offered: TradeBlock);
 }
 
 pub enum Effect {
@@ -124,7 +127,6 @@ pub enum Decision {
     Accept,
     Reject,
     Leave,
-    Party(TradeBlock),
 }
 ```
 
@@ -132,10 +134,12 @@ pub enum Decision {
 une transition, pas une faute. Au plus un effet par octet — les effets sont des
 fronts, et le protocole envoie assez d'octets pour qu'aucun ne se perde.
 
-`Decision::Party` réarme la session avec une nouvelle équipe. Elle est
-indispensable entre deux échanges d'une même session : après un échange
-réussi, l'équipe du module a changé, et la cartouche réémet aussitôt
-préambule, bloc et patch list pour resynchroniser.
+`rearm` recharge l'équipe présentée. C'est indispensable entre deux échanges
+d'une même session : après un échange réussi, l'équipe du module a changé, et
+la cartouche réémet aussitôt préambule, bloc et patch list pour
+resynchroniser. Ce n'est délibérément pas une `Decision` — la session
+n'attend rien ici, elle range — et les 415 octets d'un bloc n'ont ainsi pas à
+voyager dans un `enum` dont les autres variants tiennent sur un octet.
 
 ## 5. Les phases
 

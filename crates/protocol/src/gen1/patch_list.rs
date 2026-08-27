@@ -49,9 +49,9 @@ pub fn build(party: &mut [u8; PARTY_DATA_LEN]) -> [u8; PATCH_LIST_LEN] {
     // Deux emplacements sont réservés aux deux terminateurs.
     let capacity = PATCH_LIST_LEN - 2;
 
-    for position in 0..=PART_ONE_LAST {
-        if party[position] == NO_DATA {
-            party[position] = PART_TERMINATOR;
+    for (position, byte) in party.iter_mut().enumerate().take(PART_ONE_LAST + 1) {
+        if *byte == NO_DATA {
+            *byte = PART_TERMINATOR;
             if written < capacity {
                 list[written] = (position + 1) as u8;
                 written += 1;
@@ -61,9 +61,9 @@ pub fn build(party: &mut [u8; PARTY_DATA_LEN]) -> [u8; PATCH_LIST_LEN] {
     list[written] = PART_TERMINATOR;
     written += 1;
 
-    for position in (PART_ONE_LAST + 1)..PARTY_DATA_LEN {
-        if party[position] == NO_DATA {
-            party[position] = PART_TERMINATOR;
+    for (position, byte) in party.iter_mut().enumerate().skip(PART_ONE_LAST + 1) {
+        if *byte == NO_DATA {
+            *byte = PART_TERMINATOR;
             if written < capacity + 1 {
                 list[written] = (position - PART_ONE_LAST) as u8;
                 written += 1;

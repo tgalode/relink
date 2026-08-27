@@ -322,7 +322,7 @@ La session, ses tampons, son aiguillage, et les trois premières phases : négoc
   - `pub struct Session` avec `pub fn gen1(offered: TradeBlock) -> Self`, `pub fn step(&mut self, incoming: u8) -> Step`, `pub fn supply(&mut self, decision: Decision)`, `pub fn partner_block(&self) -> Option<TradeBlock>`.
   - `pub struct Step { pub outgoing: u8, pub effect: Option<Effect> }`
   - `pub enum Effect { LinkEstablished, PartnerBlockReceived, OfferNeeded, PartnerOffered { index: u8 }, VerdictNeeded, TradeAgreed { offered: u8, received: u8 }, TableLeft, LinkBroken }`
-  - `pub enum Decision { Offer(u8), Accept, Reject, Leave, Party(TradeBlock) }`
+  - `pub enum Decision { Offer(u8), Accept, Reject, Leave }`, `pub fn rearm(&mut self, offered: TradeBlock)`
   - `pub(crate) enum Phase` avec les variants `Negotiating`, `Menu`, `Waiting`, `Preamble`, `Seed`, `Block`, `PatchHeader`, `PatchList`, `Select`, `Verdict`, `Trading`, `Broken`.
   - Dans `tests/util/mod.rs` : `pub fn feed(session: &mut Session, bytes: &[u8]) -> Vec<u8>`, `pub fn effects(session: &mut Session, bytes: &[u8]) -> Vec<Effect>`, `pub fn bloc_fixture(marqueur: u8) -> TradeBlock`.
 
@@ -654,8 +654,18 @@ impl Session {
             Decision::Accept => self.verdict = Some(true),
             Decision::Reject => self.verdict = Some(false),
             Decision::Leave => self.leaving = true,
-            Decision::Party(block) => self.arm(block),
         }
+    }
+
+    /// Recharge l'équipe que le module présente.
+    ///
+    /// À appeler entre deux échanges — après [`Effect::TradeAgreed`] ou
+    /// [`Effect::TableLeft`] — jamais pendant le transfert d'un bloc.
+    ///
+    /// Ce n'est pas une [`Decision`] : la session n'attend rien ici, elle
+    /// range. Les 415 octets se copient une fois, hors du chemin critique.
+    pub fn rearm(&mut self, offered: TradeBlock) {
+        self.arm(offered);
     }
 
     /// L'équipe du partenaire, dès que `PartnerBlockReceived` a été émis.
@@ -1661,7 +1671,7 @@ fn une_equipe_rearmee_est_celle_qui_part_au_second_echange() {
             Some(Effect::OfferNeeded) => session.supply(Decision::Offer(0)),
             Some(Effect::VerdictNeeded) => session.supply(Decision::Accept),
             Some(Effect::TradeAgreed { .. }) => {
-                session.supply(Decision::Party(bloc_fixture(0xC0)));
+                session.rearm(bloc_fixture(0xC0));
                 rearme = true;
             }
             _ => {}

@@ -107,10 +107,6 @@ pub enum Decision {
     Reject,
     /// Quitter la table.
     Leave,
-    /// Réarmer la session avec une nouvelle équipe. À fournir entre deux
-    /// échanges — après [`Effect::TradeAgreed`] ou [`Effect::TableLeft`] —
-    /// jamais pendant le transfert d'un bloc.
-    Party(TradeBlock),
 }
 
 /// Où en est la session. Voir le tableau des phases dans
@@ -200,8 +196,20 @@ impl Session {
             Decision::Accept => self.verdict = Some(true),
             Decision::Reject => self.verdict = Some(false),
             Decision::Leave => self.leaving = true,
-            Decision::Party(block) => self.arm(block),
         }
+    }
+
+    /// Recharge l'équipe que le module présente.
+    ///
+    /// À appeler entre deux échanges — après [`Effect::TradeAgreed`] ou
+    /// [`Effect::TableLeft`] — jamais pendant le transfert d'un bloc : la
+    /// cartouche relit l'équipe à chaque retour à la table, et c'est le seul
+    /// moment où elle peut changer sans que le bloc en cours parte faux.
+    ///
+    /// Ce n'est pas une [`Decision`] : la session n'attend rien ici, elle
+    /// range. Les 415 octets se copient une fois, hors du chemin critique.
+    pub fn rearm(&mut self, offered: TradeBlock) {
+        self.arm(offered);
     }
 
     /// L'équipe du partenaire, dès que [`Effect::PartnerBlockReceived`] a été

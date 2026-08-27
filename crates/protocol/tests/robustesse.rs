@@ -4,10 +4,12 @@
 //! état indéterminé, potentiellement une sauvegarde détruite.
 
 use proptest::prelude::*;
+use relink_protocol::gen1::patch_list::{self, PARTY_DATA_LEN, PATCH_LIST_LEN};
 use relink_protocol::gen1::{
     LAST_GEN1_DEX_NUMBER, PARTY_CAPACITY, PARTY_POKEMON_LEN, PartyPokemon, TRADE_BLOCK_LEN,
     TradeBlock, national_dex_number,
 };
+use relink_protocol::session::{Decision, Session};
 use relink_protocol::text::GbString;
 use relink_protocol::time_capsule::{Ineligible, eligible_for_gen1};
 
@@ -138,4 +140,61 @@ fn le_compte_annonce_egal_a_la_capacite_expose_toute_l_equipe() {
     assert!(block.pokemon(PARTY_CAPACITY).is_none());
     assert!(block.original_trainer(PARTY_CAPACITY).is_none());
     assert!(block.nickname(PARTY_CAPACITY).is_none());
+}
+
+proptest! {
+    /// Quels que soient les octets reçus, la session ne panique jamais et
+    /// présente toujours un octet.
+    #[test]
+    fn la_session_ne_panique_sur_aucune_suite(octets in prop::collection::vec(any::<u8>(), 0..3000)) {
+        let mut bloc = [0u8; TRADE_BLOCK_LEN];
+        bloc[11] = 1;
+        let mut session = Session::gen1(TradeBlock::from_bytes(bloc));
+        for octet in octets {
+            let _ = session.step(octet);
+        }
+    }
+
+    /// Une décision fournie à contretemps ne casse rien.
+    #[test]
+    fn une_decision_a_contretemps_ne_casse_rien(
+        index in any::<u8>(),
+        octets in prop::collection::vec(any::<u8>(), 0..500),
+    ) {
+        let mut bloc = [0u8; TRADE_BLOCK_LEN];
+        bloc[11] = 1;
+        let mut session = Session::gen1(TradeBlock::from_bytes(bloc));
+        session.supply(Decision::Offer(index));
+        session.supply(Decision::Accept);
+        for octet in octets {
+            let _ = session.step(octet);
+        }
+        session.supply(Decision::Leave);
+        let _ = session.partner_block();
+    }
+
+    /// L'aller-retour de la patch list est sans perte, quelles que soient
+    /// les données d'équipe.
+    #[test]
+    fn l_aller_retour_de_patch_list_est_sans_perte(raw in prop::array::uniform32(any::<u8>())) {
+        let mut party = [0u8; PARTY_DATA_LEN];
+        for (i, b) in party.iter_mut().enumerate() {
+            *b = raw[i % raw.len()];
+        }
+        let origine = party;
+        let list = patch_list::build(&mut party);
+        patch_list::apply(&mut party, &list);
+        prop_assert_eq!(party, origine);
+    }
+
+    /// Une patch list reçue arbitraire ne fait jamais déborder l'équipe.
+    #[test]
+    fn une_patch_list_arbitraire_ne_deborde_pas(raw in prop::array::uniform32(any::<u8>())) {
+        let mut party = [0u8; PARTY_DATA_LEN];
+        let mut list = [0u8; PATCH_LIST_LEN];
+        for (i, b) in list.iter_mut().enumerate() {
+            *b = raw[i % raw.len()];
+        }
+        patch_list::apply(&mut party, &list);
+    }
 }

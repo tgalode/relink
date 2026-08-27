@@ -11,11 +11,14 @@ ou relaie l'échange d'un joueur situé à l'autre bout du monde.
 
 Le jeu, lui, ne voit qu'un échange 1:1 parfaitement normal.
 
-> **État : codecs Gen 1 livrés.** `crates/protocol` expose les codecs de
-> première génération (jeu de caractères, Pokémon d'équipe, bloc d'échange,
-> table d'espèces) et les règles de la Capsule Temporelle, testés. La machine
-> à états de l'échange et les codecs Gen 2 restent à faire ; `crates/application`
-> n'a encore aucun cas d'usage implémenté. Le dépôt est public dès le premier
+> **État : le cœur métier est complet pour la Gen 1.** `crates/protocol`
+> expose les codecs de première génération (jeu de caractères, Pokémon
+> d'équipe, bloc d'échange, table d'espèces), les règles de la Capsule
+> Temporelle, et la machine à états de l'échange Trade Center — un échange
+> complet se déroule en test, octet par octet, sans matériel.
+> `crates/application` livre ses six cas d'usage : dépôt, réservation,
+> commit, expiration, appariement, provenance. Restent les codecs Gen 2, le
+> firmware et les adaptateurs concrets. Le dépôt est public dès le premier
 > commit pour que l'hygiène de rétro-ingénierie soit vérifiable dans
 > l'historique — voir [CONTRIBUTING.md](CONTRIBUTING.md).
 

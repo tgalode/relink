@@ -16,17 +16,20 @@
 //!
 //! ## Ce qui est livré
 //!
-//! Les codecs de première génération (Rouge/Bleu/Jaune) et les règles de la
-//! Capsule Temporelle, testés :
+//! Les codecs de première génération (Rouge/Bleu/Jaune), les règles de la
+//! Capsule Temporelle et la machine à états de l'échange, testés :
 //!
 //! - [`text`] — jeu de caractères Game Boy et chaînes de longueur fixe.
 //! - [`gen1`] — Pokémon d'équipe, bloc d'échange, et table de correspondance
 //!   index interne → numéro national.
 //! - [`time_capsule`] — règles d'éligibilité au transfert vers une cartouche
 //!   de première génération.
+//! - [`session`] — la machine à états de l'échange Trade Center : le module
+//!   joue le suiveur, la cartouche cadence, et les décisions que le module
+//!   n'a pas encore n'arrêtent rien.
 //!
-//! Ce qui manque encore : la machine à états de l'échange, et les codecs de
-//! deuxième génération (Or/Argent/Cristal).
+//! Ce qui manque encore : les codecs de deuxième génération
+//! (Or/Argent/Cristal).
 //!
 //! Conception : `docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md`.
 
