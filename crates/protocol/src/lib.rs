@@ -33,5 +33,6 @@
 #![no_std]
 
 pub mod gen1;
+pub mod session;
 pub mod text;
 pub mod time_capsule;
