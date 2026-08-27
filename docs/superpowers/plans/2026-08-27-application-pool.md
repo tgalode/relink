@@ -1547,7 +1547,7 @@ fn une_reservation_encore_valide_n_est_pas_touchee() {
 }
 
 #[test]
-fn l_echeance_exacte_n_expire_pas_encore() {
+fn l_echeance_exacte_expire_deja() {
     let pool = InMemoryPool::new();
     let id = EntryId::from_u128(1);
     block_on(pool.insert(sample_entry(id))).expect("insertion");
