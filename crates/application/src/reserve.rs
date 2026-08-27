@@ -122,13 +122,21 @@ where
     /// parte vers le module.
     ///
     /// [`ReserveError::Port`] si la lecture initiale, le stockage ou le
-    /// transport échouent — dans les trois cas l'entrée peut rester
-    /// réservée : une panne de la lecture ou de `claim` ne dit pas si son
-    /// effet a eu lieu (voir « Reprise après échec » sur [`PoolRepository`]),
-    /// et une panne du transport survient nécessairement après un
-    /// [`ClaimOutcome::Claimed`] déjà acquis. Dans aucun de ces cas
-    /// l'appelant ne doit supposer l'entrée libre : voir la documentation du
-    /// module.
+    /// transport échouent. Les trois ne se valent pas :
+    ///
+    /// - une panne de la **lecture initiale** laisse l'appelant sans savoir
+    ///   dans quel état se trouve l'entrée — libre, déjà réservée par un
+    ///   autre, ou nominative — mais elle ne peut pas, elle, avoir réservé
+    ///   l'entrée : elle précède toujours `claim` dans le même appel ;
+    /// - une panne de **`claim`** ne dit pas si son effet a eu lieu (voir
+    ///   « Reprise après échec » sur [`PoolRepository`]) : l'entrée peut être
+    ///   réservée sans que l'appelant le sache ;
+    /// - une panne du **transport** survient nécessairement après un
+    ///   [`ClaimOutcome::Claimed`] déjà acquis : l'entrée est réservée, et
+    ///   elle le restera jusqu'à son échéance.
+    ///
+    /// Dans aucun de ces cas l'appelant ne doit supposer l'entrée libre : voir
+    /// la documentation du module.
     pub async fn execute(&self, request: ReserveRequest) -> Result<ReservationId, ReserveError> {
         let entry = self
             .pool
