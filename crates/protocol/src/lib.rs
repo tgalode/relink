@@ -12,3 +12,5 @@
 //! Rien n'est encore implémenté.
 
 #![no_std]
+
+pub mod text;
