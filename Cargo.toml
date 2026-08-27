@@ -1,0 +1,15 @@
+[workspace]
+resolver = "3"
+members = ["crates/protocol", "crates/application"]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.85"
+repository = "https://github.com/tgalode/relink"
+authors = ["relink contributors"]
+
+[workspace.lints.rust]
+# `protocol` tourne sur la cible embarquée et dans le chemin critique du câble.
+# Rien ici ne justifie du code non sûr.
+unsafe_code = "forbid"
+missing_docs = "warn"

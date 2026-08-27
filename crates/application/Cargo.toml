@@ -1,0 +1,15 @@
+[package]
+name = "relink-application"
+version = "0.0.0"
+description = "Cas d'usage du service relink : dépôt, réservation, relais"
+license = "AGPL-3.0-or-later"
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+relink-protocol = { path = "../protocol" }
+
+[lints]
+workspace = true
