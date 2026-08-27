@@ -20,18 +20,21 @@ impl Session {
             return self.leave_table();
         }
 
-        if !self.announced {
-            self.announced = true;
-            return self.with(self.select_outgoing(), Effect::OfferNeeded);
-        }
-
         if incoming == self.bytes.table_leave {
             return self.leave_table();
         }
 
+        // Ce que le joueur annonce passe avant la demande d'offre : sinon
+        // l'annonce avalerait l'octet, et son offre serait perdue. La demande
+        // reste due, et sort au premier octet qui ne dit rien d'autre.
         if let Some(index) = self.partner_index(incoming) {
             self.partner_offer = Some(index);
             return self.with(self.select_outgoing(), Effect::PartnerOffered { index });
+        }
+
+        if !self.announced {
+            self.announced = true;
+            return self.with(self.select_outgoing(), Effect::OfferNeeded);
         }
 
         if incoming == BLANK && self.offer.is_some() && self.partner_offer.is_some() {

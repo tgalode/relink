@@ -1186,7 +1186,10 @@ pub fn jusqu_a_la_selection(session: &mut Session, partenaire: TradeBlock) {
     octets.extend_from_slice(&[0x00; 8]);
     octets.push(0xFF);
     octets.push(0xFF);
-    octets.extend(core::iter::repeat(0x00).take(200));
+    // La section de patch list fait 195 octets comptés depuis son premier :
+    // huit d'en-tête, les deux terminateurs, puis le remplissage. On s'arrête
+    // pile à la frontière, pour laisser la phase de sélection intacte.
+    octets.extend(core::iter::repeat_n(0x00, 185));
     feed(session, &octets);
 }
 ```
@@ -1362,20 +1365,23 @@ impl Session {
             return self.restart();
         }
 
-        if !self.announced {
-            self.announced = true;
-            return self.with(self.select_outgoing(), Effect::OfferNeeded);
-        }
-
         if incoming == self.bytes.table_leave {
             self.phase = Phase::Waiting;
             self.reset_round();
             return self.with(self.bytes.table_leave, Effect::TableLeft);
         }
 
+        // Ce que le joueur annonce passe avant la demande d'offre : sinon
+        // l'annonce avalerait l'octet, et son offre serait perdue. La demande
+        // reste due, et sort au premier octet qui ne dit rien d'autre.
         if let Some(index) = self.partner_index(incoming) {
             self.partner_offer = Some(index);
             return self.with(self.select_outgoing(), Effect::PartnerOffered { index });
+        }
+
+        if !self.announced {
+            self.announced = true;
+            return self.with(self.select_outgoing(), Effect::OfferNeeded);
         }
 
         if incoming == BLANK && self.offer.is_some() && self.partner_offer.is_some() {
@@ -1523,19 +1529,22 @@ impl Cartouche {
         programme.extend_from_slice(&[0x00; 8]);
         programme.push(0xFF);
         programme.push(0xFF);
-        programme.extend(core::iter::repeat(0x00).take(200));
+        programme.extend(core::iter::repeat_n(0x00, 185));
         Self { programme, position: 0, equipe }
     }
 
-    /// Le joueur annonce le Pokémon qu'il propose.
+    /// Le joueur annonce le Pokémon qu'il propose. Une poignée d'octets
+    /// neutres suit, comme sur le fil réel.
     pub fn choisit(&mut self, index: u8) {
         self.programme.push(0x60 + index);
-        self.programme.push(0x00);
+        self.programme.extend_from_slice(&[0x00; 4]);
     }
 
-    /// Le joueur accepte l'échange.
+    /// Le joueur accepte l'échange, suivi de la même poignée d'octets
+    /// neutres.
     pub fn accepte(&mut self) {
         self.programme.push(0x62);
+        self.programme.extend_from_slice(&[0x00; 4]);
     }
 
     /// Le joueur revient à la table pour un second échange : tout le
