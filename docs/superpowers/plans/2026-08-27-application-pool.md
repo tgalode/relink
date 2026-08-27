@@ -917,7 +917,7 @@ Et le module partagé `crates/application/tests/util/mod.rs` :
 //! Constructeurs communs aux tests d'intégration.
 
 use relink_application::domain::{
-    EntryId, EntryState, Pokemon, PoolEntry, Provenance, Timestamp, TrainerId,
+    DepositId, EntryId, EntryState, Pokemon, PoolEntry, Provenance, Timestamp, TrainerId,
 };
 use relink_protocol::gen1::{NAME_LEN, Name, PARTY_POKEMON_LEN};
 
@@ -945,6 +945,7 @@ pub fn some_pokemon() -> Pokemon {
 pub fn sample_entry(id: EntryId) -> PoolEntry {
     PoolEntry {
         id,
+        deposit: DepositId::from_u128(id.as_u128()),
         pokemon: some_pokemon(),
         provenance: Provenance {
             depositor: TrainerId { name: some_name(), number: 1234 },
@@ -1639,7 +1640,7 @@ Spec §7.3, décision B : l'échange direct **n'est pas un protocole distinct**.
 - Test: `crates/application/tests/pairing.rs`
 
 **Interfaces:**
-- Produces : `pub struct pairing::OfferDirectTrade<R, L, C, I>` avec `new(pool, legality, clock, ids)` et `async fn execute(&self, request: DirectTradeRequest) -> Result<EntryId, DepositError>`, `pub struct DirectTradeRequest { pub depositor: TrainerId, pub pokemon: Pokemon, pub reserved_for: TrainerId }`, plus `pub fn domain::PoolEntry::is_offered_to(&self, trainer: &TrainerId) -> bool` et le champ `pub reserved_for: Option<TrainerId>` sur `PoolEntry`
+- Produces : `pub struct pairing::OfferDirectTrade<R, L, C, I>` avec `new(pool, legality, clock, ids)` et `async fn execute(&self, request: DirectTradeRequest) -> Result<EntryId, DepositError>`, `pub struct DirectTradeRequest { pub deposit: DepositId, pub depositor: TrainerId, pub pokemon: Pokemon, pub reserved_for: TrainerId }`, plus `pub fn domain::PoolEntry::is_offered_to(&self, trainer: &TrainerId) -> bool` et le champ `pub reserved_for: Option<TrainerId>` sur `PoolEntry`
 
 - [ ] **Step 1: Écrire le test qui échoue**
 
@@ -1664,6 +1665,10 @@ fn trainer(number: u16) -> TrainerId {
 
 fn offer(to: u16) -> DirectTradeRequest {
     DirectTradeRequest {
+        // Spec §7.4 : une offre directe est un dépôt, la cartouche y cède le
+        // Pokémon de la même façon. Elle porte donc la même clé d'idempotence,
+        // émise par le module — jamais frappée côté serveur.
+        deposit: relink_application::domain::DepositId::from_u128(88),
         depositor: trainer(1),
         pokemon: some_pokemon(),
         reserved_for: trainer(to),
@@ -1690,7 +1695,12 @@ fn un_depot_ordinaire_est_offert_a_tout_le_monde() {
     use relink_application::deposit::{Deposit, DepositRequest};
     let pool = InMemoryPool::new();
     let uc = Deposit::new(&pool, StubLegality::accepting(), FixedClock::new(Timestamp::from_millis(0)), SequentialIds::new());
-    let id = block_on(uc.execute(DepositRequest { depositor: trainer(1), pokemon: some_pokemon() })).expect("dépôt");
+    let id = block_on(uc.execute(DepositRequest {
+        deposit: relink_application::domain::DepositId::from_u128(89),
+        depositor: trainer(1),
+        pokemon: some_pokemon(),
+    }))
+    .expect("dépôt");
 
     let stored = block_on(pool.get(id)).expect("lecture").expect("présente");
     assert!(stored.is_offered_to(&trainer(2)));
@@ -1723,7 +1733,12 @@ fn un_pokemon_illegal_est_refuse_meme_en_offre_directe() {
 fn on_ne_peut_pas_s_offrir_un_pokemon_a_soi_meme() {
     use relink_application::deposit::DepositError;
     let pool = InMemoryPool::new();
-    let request = DirectTradeRequest { depositor: trainer(1), pokemon: some_pokemon(), reserved_for: trainer(1) };
+    let request = DirectTradeRequest {
+        deposit: relink_application::domain::DepositId::from_u128(90),
+        depositor: trainer(1),
+        pokemon: some_pokemon(),
+        reserved_for: trainer(1),
+    };
     assert!(block_on(use_case(&pool).execute(request)).is_err(), "un échange avec soi-même n'en est pas un");
     assert_eq!(pool.len(), 0);
     let _ = DepositError::Illegal; // garde l'import utilisé si l'implémenteur choisit une autre variante
@@ -1740,6 +1755,7 @@ Expected: FAIL — `unresolved import relink_application::pairing`
 - [ ] **Step 3: Écrire l'implémentation**
 
 - Ajouter `pub reserved_for: Option<TrainerId>` à `PoolEntry` (tâche 2) et la méthode `is_offered_to`, qui rend vrai si `reserved_for` est `None` ou si elle désigne ce dresseur. Mettre à jour les constructeurs des tests et de `Deposit`, qui posent `None`.
+- Un test de plus, à écrire toi-même sur le modèle de `rejouer_le_meme_depot_ne_cree_pas_de_doublon` de la tâche 5 : **rejouer la même offre directe ne crée pas de doublon**. Une offre directe est un dépôt (spec §7.3), la cartouche y cède le Pokémon de la même façon, et la clé d'idempotence traverse le même chemin. C'est la porte d'à côté de celle du §7.4, et elle paraît couverte alors qu'elle ne l'est que si tu passes la clé.
 - `OfferDirectTrade` réutilise le chemin du dépôt et ne s'en distingue que par ce champ et par le refus de l'auto-offre. **Ne duplique pas la logique de dépôt** : si les deux cas d'usage divergent au-delà d'un champ, c'est que le design a dérivé de la décision B.
 - Le filtrage effectif du pool par destinataire est une affaire de requête, donc d'adaptateur. Le domaine fournit le prédicat ; il ne fait pas de requête.
 
@@ -1854,7 +1870,11 @@ fn replay(sequence: &[Event]) {
                 // expiré et quelqu'un d'autre l'a prise. Le module doit alors
                 // détruire ce qu'il détient sans rien donner à la cartouche.
                 let verdict = block_on(pool.record_delivery(res)).expect("accusé de réception");
-                world.module_acknowledged = verdict != CommitOutcome::Unknown;
+                // `|=` et non `=` : un modèle monotone. Un second accusé qui
+                // rendrait `Unknown` ne doit pas faire *oublier* une remise déjà
+                // simulée, sinon le harnais cesserait de modéliser la cartouche
+                // et masquerait une duplication.
+                world.module_acknowledged |= verdict != CommitOutcome::Unknown;
             }
             // Une cartouche ne peut recevoir que d'un module qui a reçu la
             // réservation. Le modèle doit refléter cette dépendance, sinon il

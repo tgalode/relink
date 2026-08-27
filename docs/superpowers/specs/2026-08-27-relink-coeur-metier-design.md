@@ -322,6 +322,26 @@ Un identifiant frappé côté serveur ne peut pas jouer ce rôle : par
 construction, il est neuf à chaque tentative. C'est précisément ce qui rendait
 le rejeu dangereux.
 
+**La clé ne s'oublie jamais.** La fenêtre de rejeu d'un module n'est pas
+bornée — c'est la prémisse même du §7.2, un module peut dormir des mois dans un
+tiroir. Une déduplication adossée à la seule existence de l'entrée serait donc
+défaite par une politique de rétention ordinaire : purger les entrées tranchées
+au bout de quatre-vingt-dix jours suffirait à faire renaître le dépôt d'un
+Pokémon déjà remis à quelqu'un d'autre. Ce qui doit survivre, c'est le registre
+des clés, pas l'entrée.
+
+Asymétrie à noter : seule la direction dépôt est critique à cet égard. Un commit
+rejoué après purge ne trouve plus sa réservation et ne rend rien au pool — c'est
+une perte, pas une duplication.
+
+**La clé est unique globalement et pour toujours**, tous modules confondus. Un
+compteur de journal local partant de 1 — l'implémentation réflexe côté firmware —
+ferait entrer en collision le premier dépôt de chaque module. Le serveur ne peut
+pas distinguer une collision d'un rejeu : il avalerait silencieusement un dépôt
+légitime, la cartouche ayant déjà cédé son Pokémon. C'est une perte systématique
+et sans coupable. La clé doit donc mêler l'identité du module au compteur, ou
+tenir dans cent vingt-huit bits tirés au hasard.
+
 ## 8. Tests
 
 Tout se teste sans matériel. C'est l'intérêt principal de la découpe.
