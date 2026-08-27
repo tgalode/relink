@@ -123,8 +123,12 @@ pub enum EntryState {
         ///
         /// Tant que c'est faux, rien n'a pu atteindre une cartouche et
         /// l'expiration est sûre. Dès que c'est vrai, l'entrée ne revient plus
-        /// jamais au pool toute seule : un module hors ligne ayant déjà remis
-        /// le Pokémon est indiscernable d'un module qui n'a rien reçu.
+        /// jamais au pool toute seule : une fois la réservation parvenue au
+        /// module, un module hors ligne ayant déjà remis le Pokémon à la
+        /// cartouche est indiscernable d'un module hors ligne qui ne l'a pas
+        /// encore remis. Le serveur ne peut donc pas trancher sans risquer une
+        /// duplication, et l'entrée reste bloquée jusqu'à ce que le module
+        /// parle.
         delivered: bool,
     },
     /// Remise à une cartouche, confirmée par le module.
