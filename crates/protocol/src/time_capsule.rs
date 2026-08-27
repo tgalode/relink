@@ -6,6 +6,9 @@
 use crate::gen1::{PartyPokemon, national_dex_number};
 
 /// Identifiant de la dernière capacité de première génération.
+///
+/// Confiance **probable** (source unique nommée), voir
+/// `docs/protocol/time-capsule-rules.md`.
 pub const LAST_GEN1_MOVE_ID: u8 = 165;
 
 /// Pourquoi un Pokémon ne peut pas descendre vers une cartouche Gen 1.
@@ -14,6 +17,19 @@ pub enum Ineligible {
     /// L'index d'espèce ne désigne aucune espèce valide.
     UnknownSpecies,
     /// L'espèce est postérieure à la première génération.
+    ///
+    /// Inatteignable tant que la table de correspondance
+    /// [`crate::gen1::national_dex_number`] ne couvre que le Pokédex de
+    /// première génération : aucun index ne peut aujourd'hui produire un
+    /// numéro national supérieur à
+    /// [`LAST_GEN1_DEX_NUMBER`](crate::gen1::LAST_GEN1_DEX_NUMBER). La
+    /// variante est conservée quand même parce qu'elle rend cette énumération
+    /// **totale** vis-à-vis des deux règles d'espèce documentées dans
+    /// `docs/protocol/time-capsule-rules.md` (espèce inconnue, espèce hors
+    /// Pokédex Gen 1) — pas parce qu'un futur codec Gen 2 réutiliserait
+    /// [`eligible_for_gen1`] : cette fonction prend un `&gen1::PartyPokemon`
+    /// et interroge une table d'index interne à la première génération ; un
+    /// Pokémon Gen 2 ne pourra pas l'alimenter sans changement de signature.
     SpeciesTooRecent {
         /// Numéro national de l'espèce fautive.
         dex: u8,

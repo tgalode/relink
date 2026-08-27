@@ -58,8 +58,8 @@ impl PartyPokemon {
         &self.bytes
     }
 
-    /// Index interne de l'espèce. Ce n'est **pas** le numéro national ; la
-    /// conversion est en tâche 5.
+    /// Index interne de l'espèce. Ce n'est **pas** le numéro national ; pour
+    /// la conversion, voir [`crate::gen1::national_dex_number`].
     #[must_use]
     pub const fn species_index(&self) -> u8 {
         self.bytes[OFF_SPECIES]
@@ -85,7 +85,9 @@ impl PartyPokemon {
         (self.bytes[OFF_TRAINER_ID] as u16) << 8 | (self.bytes[OFF_TRAINER_ID + 1] as u16)
     }
 
-    /// Les quatre emplacements de capacité. `0` signifie « vide ».
+    /// Les quatre emplacements de capacité. `0` signifie « vide » — convention
+    /// de confiance **probable** (source unique), voir
+    /// `docs/protocol/gen1-trade-block.md`.
     #[must_use]
     pub const fn moves(&self) -> [u8; 4] {
         [

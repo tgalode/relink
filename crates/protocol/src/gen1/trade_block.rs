@@ -51,7 +51,7 @@ impl TradeBlock {
     /// Nombre de Pokémon dans l'équipe, borné par la capacité même si la
     /// cartouche annonce davantage.
     #[must_use]
-    pub fn party_len(&self) -> usize {
+    pub const fn party_len(&self) -> usize {
         let announced = self.bytes[OFF_PARTY_LIST] as usize;
         if announced > PARTY_CAPACITY {
             PARTY_CAPACITY

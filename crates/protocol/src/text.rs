@@ -44,7 +44,7 @@ impl<const N: usize> GbString<N> {
 
     /// Nombre d'octets avant le terminateur, ou `N` s'il n'y en a pas.
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         let mut i = 0;
         while i < N {
             if self.bytes[i] == TERMINATOR {
@@ -57,7 +57,7 @@ impl<const N: usize> GbString<N> {
 
     /// Vrai si la chaîne commence par le terminateur.
     #[must_use]
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
