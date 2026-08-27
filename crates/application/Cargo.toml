@@ -10,6 +10,11 @@ authors.workspace = true
 
 [dependencies]
 relink-protocol = { path = "../protocol" }
+thiserror = "2"
+
+[dev-dependencies]
+pollster = "0.4"
+proptest = "1"
 
 [lints]
 workspace = true

@@ -6,4 +6,8 @@
 //!
 //! Conception : `docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md`.
 //!
-//! Rien n'est encore implémenté.
+//! Le module [`domain`] pose les types métier — instants, identifiants,
+//! Pokémon et entrées de pool — sur lesquels s'appuieront les ports et les
+//! cas d'usage des lots suivants.
+
+pub mod domain;
