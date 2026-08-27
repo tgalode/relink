@@ -902,6 +902,30 @@ fn une_reservation_echue_rend_l_entree_une_seule_fois() {
 }
 
 #[test]
+fn inserer_deux_fois_la_meme_cle_de_depot_ne_cree_qu_une_entree() {
+    // Spec §7.4. Sans ce test, la doublure serait écrite sans cette garantie
+    // et le manque se découvrirait à la tâche 5, une tâche trop tard.
+    let pool = InMemoryPool::new();
+    let first = sample_entry(EntryId::from_u128(1));
+    let mut second = sample_entry(EntryId::from_u128(2));
+    second.deposit = first.deposit;
+
+    let a = block_on(pool.insert(first)).expect("premier");
+    let b = block_on(pool.insert(second)).expect("rejeu");
+
+    assert_eq!(a, b, "le rejeu doit rendre l'identifiant déjà enregistré");
+    assert_eq!(pool.len(), 1);
+}
+
+#[test]
+fn deux_cles_de_depot_distinctes_creent_deux_entrees() {
+    let pool = InMemoryPool::new();
+    block_on(pool.insert(sample_entry(EntryId::from_u128(1)))).expect("premier");
+    block_on(pool.insert(sample_entry(EntryId::from_u128(2)))).expect("second");
+    assert_eq!(pool.len(), 2);
+}
+
+#[test]
 fn la_panne_injectee_ne_frappe_qu_une_fois() {
     use relink_application::ports::PortError;
     let pool = InMemoryPool::new();
@@ -971,6 +995,7 @@ Expected: FAIL — `unresolved import relink_application::testing`
 - `record_commit` et `record_abandon` consultent une table `ReservationId -> ()` des réservations déjà tranchées : premier appel `Recorded`, suivants `AlreadyRecorded`, y compris entre commit et abandon — **une réservation ne se tranche qu'une fois, dans un sens ou dans l'autre**.
 - `expire_due` ne rend que les entrées dont l'état est `Reserved`, dont `delivered` est **faux**, et dont `expires_at <= now` ; elle les repasse à `Available` sous le même verrou. Une entrée `Committed`, `Abandoned`, ou `Reserved` avec `delivered` vrai n'en fait **jamais** partie.
 - `record_delivery` passe `delivered` à vrai, et rend `AlreadyRecorded` si c'était déjà le cas ou si la réservation est déjà tranchée.
+- `insert` tient un registre `DepositId -> EntryId` **distinct** de la table des entrées, consulté avant toute création, et rend l'identifiant déjà enregistré si la clé y figure. Le registre ne s'efface jamais — la doublure ne purge rien, mais la structure doit rendre l'intention lisible.
 - `fail_next` empile une erreur consommée par le prochain appel, quel qu'il soit. C'est ce qui permettra à la tâche 10 de simuler les pannes.
 - `FixedClock` n'avance que sur `advance` ou `set`. Elle ne lit jamais `SystemTime`.
 - `SequentialIds` rend 1, 2, 3… pour chaque famille d'identifiants, et ne rend jamais 0 — ce qui rend les traces de test lisibles et les scénarios reproductibles.
