@@ -160,7 +160,9 @@ Trois seulement, l'évolution ne remontant pas jusqu'ici :
 ### 6.2 Ports déclarés
 
 `PoolRepository`, `LegalityChecker` (PKHeX.Core derrière), `ModuleTransport`
-(MQTT), `Clock`, `Notifier`.
+(MQTT), `Clock`, `Notifier`, et `IdSource` — ce dernier ajouté à
+l'implémentation : le domaine ne tire jamais d'aléa lui-même, pas plus qu'il ne
+lit l'horloge, et c'est ce qui rend le test d'invariant reproductible.
 
 Aucun n'a d'implémentation dans ce lot. C'est le principe.
 
@@ -170,12 +172,17 @@ Le dresseur, c'est-à-dire le nom OT et l'identifiant de dresseur lus sur la
 cartouche. Suffisant pour établir la provenance. Les comptes utilisateurs sont
 un problème d'adaptateur et ne remontent pas dans le cœur.
 
-## 7. Le commit : le seul endroit où l'on peut détruire des données
+## 7. Le commit : là où l'on peut détruire des données
 
 Un échange se conclut **physiquement** sur la cartouche. Il n'y a pas de
 rollback : une fois l'animation passée, le Pokémon est dans la sauvegarde, que
 le serveur l'ait su ou non. C'est une transaction distribuée dont l'un des
 participants ne sait pas annuler.
+
+Le titre de cette section disait initialement « le **seul** endroit où l'on peut
+détruire des données ». Le §7.4, écrit plus tard, l'a démenti : au dépôt aussi
+la cartouche perd le Pokémon irréversiblement. Le commit reste l'endroit le plus
+dangereux, il n'est pas le seul.
 
 La réponse tient en trois pièces :
 
