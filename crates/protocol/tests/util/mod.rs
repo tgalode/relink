@@ -31,3 +31,9 @@ pub fn bloc_fixture(marqueur: u8) -> TradeBlock {
     raw[11] = 1; // un Pokémon dans l'équipe
     TradeBlock::from_bytes(raw)
 }
+
+/// Amène une session fraîche au bord du transfert : lien établi, Trade
+/// Center choisi, table utilisée. Le premier octet de préambule est consommé.
+pub fn jusqu_a_la_table(session: &mut Session) {
+    feed(session, &[0x01, 0x00, 0x60, 0xD4, 0x60, 0xFD]);
+}
