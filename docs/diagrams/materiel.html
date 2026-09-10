@@ -55,7 +55,7 @@
 
     <svg viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="relink-materiel-title relink-materiel-desc">
       <title id="relink-materiel-title">Les briques du module</title>
-      <desc id="relink-materiel-desc">Cadrage matériel : la cartouche fournit l'horloge au connecteur link, une adaptation de niveau protège le microcontrôleur qui exécute le crate protocol, un journal non volatile empêche la duplication d'un échange, et une connectivité IP porte MQTT jusqu'au service. Seule la contrainte du lien est établie ; le choix de chaque composant reste ouvert, y compris l'alimentation.</desc>
+      <desc id="relink-materiel-desc">Cadrage matériel : la cartouche fournit l'horloge au connecteur link, une adaptation de niveau protège le microcontrôleur qui exécute le crate protocol, un journal non volatile empêche la duplication d'un échange, et une connectivité IP porte MQTT jusqu'au service. Le lien est établi, brochage et tensions compris — le port est en 5 V sur GB comme sur GBC, l'adaptation n'est donc pas optionnelle (voir docs/protocol/link-couche-physique.md). Le choix de chaque composant reste ouvert, y compris l'alimentation.</desc>
       <defs>
         <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
         <marker id="arrow-rev" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto"><polygon points="8 0, 0 3, 8 6" fill="#4f5d75"/></marker>
@@ -109,7 +109,7 @@
       <rect x="248" y="184" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.40)" stroke-width="0.8"/>
       <text x="266" y="192" fill="rgba(45,49,66,0.80)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">PORT</text>
       <text x="312" y="224" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Connecteur link</text>
-      <text x="312" y="240" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">brochage à sourcer</text>
+      <text x="312" y="240" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">brochage sourcé</text>
 
       <!-- Adaptation de niveau : à trancher -->
       <rect x="416" y="176" width="144" height="80" rx="6" fill="#f5f5f5"/>
@@ -117,7 +117,7 @@
       <rect x="424" y="184" width="36" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.20)" stroke-width="0.8"/>
       <text x="442" y="192" fill="rgba(45,49,66,0.50)" font-size="7" font-family="'Geist Mono', monospace" text-anchor="middle" letter-spacing="0.08em">ÉLEC</text>
       <text x="488" y="224" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">Adaptation de niveau</text>
-      <text x="488" y="240" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">tensions à confirmer</text>
+      <text x="488" y="240" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">5 V — obligatoire</text>
 
       <!-- Microcontrôleur : la brique focale -->
       <rect x="592" y="176" width="144" height="80" rx="6" fill="#f5f5f5"/>

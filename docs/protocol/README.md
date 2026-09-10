@@ -15,6 +15,14 @@ Pour chaque valeur ou structure :
 
 ## Documents de ce dossier
 
+- [`link-couche-physique.md`](link-couche-physique.md) — la couche sous
+  toutes les autres, commune Gen 1 et Gen 2 : brochage des six broches,
+  tension logique (5 V sur GB et GBC), ordre des bits, fronts d'horloge,
+  cadence de 8192 Hz, et ce qui arrive quand un octet n'est pas prêt. Ne
+  source aucune constante du crate `protocol` — il ne connaît ni le temps ni
+  les tensions — mais source le futur lot firmware. Huit entrées confirmées,
+  une probable, une conséquence de conception, et une question ouverte sur
+  l'horloge rapide du CGB.
 - [`gen1-charset.md`](gen1-charset.md) — jeu de caractères Game Boy (Rouge/
   Bleu/Jaune) : terminateur, majuscules, minuscules, chiffres, ponctuation.
   Confirmé pour l'essentiel des octets, un seul (`0xF2`) reste probable.
@@ -40,14 +48,18 @@ Pour chaque valeur ou structure :
 
 Ces documents sourcent les codecs Gen 1 livrés dans `crates/protocol` : jeu
 de caractères, Pokémon d'équipe, bloc d'échange, table d'espèces, et les
-règles de la Capsule Temporelle.
+règles de la Capsule Temporelle. Seul `link-couche-physique.md` fait
+exception : il ne source pas de code livré, il source le lot firmware à
+venir.
 
 ## Ce qui reste ouvert
 
 Le design du cœur métier
 (`docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md`) est
 volontairement écrit au niveau des phases du protocole, pas des octets. Des
-deux inconnues qui conditionnaient ce choix, une est levée.
+deux inconnues qui conditionnaient ce choix, une est levée ; le cadrage du
+lot firmware en a fait apparaître une troisième, qui ne touche pas le crate
+`protocol` mais décide de la conception du module.
 
 1. ~~Les valeurs du handshake et de la phase de sélection.~~ **Sourcées** dans
    [`gen1-link-protocol.md`](gen1-link-protocol.md). La question qu'elles
@@ -56,7 +68,14 @@ deux inconnues qui conditionnaient ce choix, une est levée.
    c'est `0x00`, le jeu l'accepte en boucle et sans échéance pendant la phase
    de sélection. Le mécanisme d'attente du §5.2 tient, et l'échange direct
    entre joueurs distants avec lui.
-2. **Le format exact du bloc Gen 2, courrier inclus.** Toujours ouvert. Le
+2. **La cadence d'horloge de l'échange Gen 2.** Nouvelle, et elle porte à
+   conséquence. Le Game Boy Color sait cadencer le lien à 262144 Hz, soit
+   ~3,8 µs par bit contre ~122 µs à la cadence de la DMG. Aucune source
+   consultée ne dit laquelle l'échange Gen 2 emploie réellement. Sans effet
+   sur le crate `protocol`, qui ne connaît pas le temps ; déterminant pour la
+   stratégie de décodage du firmware. Voir
+   [`link-couche-physique.md`](link-couche-physique.md).
+3. **Le format exact du bloc Gen 2, courrier inclus.** Toujours ouvert. Le
    courrier étant transporté opaque, seuls son décalage et sa taille importent.
    Les valeurs Gen 2 de la *machine à états* sont, elles, consignées dans
    [`gen1-link-protocol.md`](gen1-link-protocol.md) — source unique, à

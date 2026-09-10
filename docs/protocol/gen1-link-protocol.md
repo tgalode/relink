@@ -3,7 +3,9 @@
 Déroulé de l'échange par câble link entre deux cartouches Pokémon
 Rouge/Bleu/Jaune, et valeurs d'octets de chaque phase. Ce document source la
 machine à états de l'échange ; la disposition des 415 octets transportés est
-documentée à part dans [`gen1-trade-block.md`](gen1-trade-block.md).
+documentée à part dans [`gen1-trade-block.md`](gen1-trade-block.md), et la
+couche physique qui les porte — brochage, tensions, horloge, fronts — dans
+[`link-couche-physique.md`](link-couche-physique.md).
 
 **Récapitulatif de confiance** (18 entrées « Confiance » dans ce document) :
 **11 confirmées** (≥ 2 sources indépendantes convergentes), **6 probables**
