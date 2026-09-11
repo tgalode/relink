@@ -122,9 +122,42 @@ Sources principales :
 - **Choix retenu pour le cadrage** — les trois signaux sont unidirectionnels
   (`SCK` et `SOUT` entrent dans le module, `SIN` en sort), donc un tampon
   unidirectionnel suffit et un convertisseur bidirectionnel à MOSFET n'est pas
-  nécessaire. Un `74LVC245` alimenté en 3,3 V accepte du 5 V en entrée ; sa
-  limite connue — inutilisable sur un bus à pull-up type I²C — ne concerne pas
-  ce lien. Rien n'est arrêté ici : c'est un cadrage, comme le schéma matériel.
+  nécessaire. Sa limite connue — inutilisable sur un bus à pull-up type I²C —
+  ne concerne pas ce lien.
+
+  **Il faut deux boîtiers, pas un.** La première rédaction de ce document ne
+  retenait qu'un `74LVC245`. Il couvre la descente, pas la montée, pour deux
+  raisons que les fiches constructeur tranchent :
+
+  - **`DIR` commande les huit voies à la fois.** Un seul boîtier ne peut donc
+    pas descendre `SCK`/`SOUT` et monter `SIN` en même temps. Source : TI,
+    fiche [`SN74LVC245A`](https://www.ti.com/lit/ds/symlink/sn74lvc245a.pdf),
+    table de fonction — `DIR` haut, A vers B ; `DIR` bas, B vers A, sans
+    commande par voie.
+  - **La famille LVC ne s'alimente pas en 5 V.** Sa plage est 1,65 à 3,6 V, et
+    son `VIH` vaut 0,7 × VCC : même alimentée en 5 V, elle exigerait 3,5 V
+    pour lire un « 1 » et ne reconnaîtrait donc pas la sortie 3,3 V d'un
+    ESP32. Même source.
+
+  D'où la répartition retenue :
+
+  | Sens | Boîtier | VCC | `DIR` |
+  |---|---|---|---|
+  | `SCK`, `SOUT` : 5 V → 3,3 V | `74LVC245` | 3,3 V | à la masse |
+  | `SIN` : 3,3 V → 5 V | `74AHCT245` | 5 V | au +5 V |
+
+  Le `74LVC245` alimenté en 3,3 V accepte jusqu'à 5,5 V sur ses entrées et
+  E/S, ce qui rend l'étage descendant possible sans diviseur. Le `74AHCT245`
+  est à seuil TTL — « Inputs are TTL-voltage compatible », `VIH` minimal de
+  2 V à VCC de 4,5 à 5,5 V — ce qui rend l'étage montant possible depuis du
+  3,3 V. Source : TI, fiche
+  [`SN74AHCT245`](https://www.ti.com/lit/ds/symlink/sn74ahct245.pdf),
+  SCLS233S, § Features et conditions de fonctionnement recommandées.
+
+  Schéma complet, découplage et broches non connectées comprises :
+  [`../diagrams/interface-link.html`](../diagrams/interface-link.html).
+
+  Rien n'est arrêté ici : c'est un cadrage, comme le schéma matériel.
 
 ## Ordre des bits
 
@@ -177,7 +210,11 @@ Sources principales :
   de cadence particulière, ce qui suggère 8192 Hz sans le démontrer.
 - **Conséquence** — à trancher avant de figer la stratégie de décodage du
   firmware. Un décodage par interruption sur `SCK` est confortable à 122 µs
-  par bit et hasardeux à 3,8 µs.
+  par bit et hasardeux à 3,8 µs. **La mesure a depuis remplacé l'adjectif par
+  un chiffre** : 2,7 µs de latence radio allumée, soit 5,5 % du budget d'un
+  bit à 8192 Hz et 176 % à 262144 Hz. Cette question ne décide donc pas d'un
+  confort, elle décide de la faisabilité. Voir
+  [`../firmware/latence-decodage.md`](../firmware/latence-decodage.md).
 
 ## Octet non prêt : le précédent repart
 
@@ -208,6 +245,9 @@ Sources principales :
   SPI esclave d'un ESP32 cadre ses transferts sur `CS` et se prête donc mal à
   ce lien. Un décodage sur interruption de `SCK` est la voie à instruire en
   premier — sous réserve de la question ouverte sur l'horloge rapide CGB.
+  **Cette voie a été mesurée depuis** : elle tient à 8192 Hz, y compris radio
+  allumée. Chiffres et montage dans
+  [`../firmware/latence-decodage.md`](../firmware/latence-decodage.md).
 
 ## Ce que ce document ne dit pas
 
