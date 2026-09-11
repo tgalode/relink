@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interface port link ↔ ESP32</title>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-accent:  #eb6c36;
+      --font-sans:     'Geist', system-ui, sans-serif;
+      --font-serif:    'Instrument Serif', serif;
+      --font-mono:     'Geist Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 2rem;
+    }
+
+    .frame { max-width: 1280px; width: 100%; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-family: var(--font-serif);
+      font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      color: var(--color-ink);
+      margin-bottom: 1.5rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Relink · Schéma · Interface matérielle</p>
+    <h1>Interface port link ↔ ESP32</h1>
+
+    <svg viewBox="0 0 1120 900" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="interface-link-title interface-link-desc">
+      <title id="interface-link-title">Interface port link ↔ ESP32</title>
+      <desc id="interface-link-desc">Schéma électrique de l'étage d'adaptation entre le port link d'une Game Boy en 5 volts et un ESP32 en 3,3 volts. Les deux signaux entrants, horloge et données sortantes de la console, descendent par un 74LVC245 alimenté en 3,3 volts ; le signal sortant du module remonte par un 74AHCT245 alimenté en 5 volts. Masse commune, découplage par deux condensateurs de 100 nanofarads, broche d'alimentation de la console laissée non connectée.</desc>
+
+      <defs>
+        <g id="gnd">
+          <line x1="0" y1="0" x2="0" y2="8"/>
+          <line x1="-12" y1="8" x2="12" y2="8"/>
+          <line x1="-8" y1="14" x2="8" y2="14"/>
+          <line x1="-4" y1="20" x2="4" y2="20"/>
+        </g>
+      </defs>
+
+      <rect width="100%" height="100%" fill="#f5f5f5"/>
+      <rect x="32" y="32" width="1056" height="832" fill="none" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+
+      <!-- ================= J1 — port link ================= -->
+      <text x="80" y="148" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.08em">J1 — PORT LINK, CÔTÉ CONSOLE</text>
+      <rect x="80" y="160" width="136" height="176" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+
+      <line x1="216" y1="184" x2="264" y2="184" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="188" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">1</text>
+      <text x="204" y="188" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">VCC</text>
+
+      <line x1="216" y1="208" x2="264" y2="208" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="212" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">2</text>
+      <text x="204" y="212" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">SOUT</text>
+
+      <line x1="216" y1="232" x2="264" y2="232" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="236" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">3</text>
+      <text x="204" y="236" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">SIN</text>
+
+      <line x1="216" y1="256" x2="264" y2="256" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="260" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">4</text>
+      <text x="204" y="260" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">P14</text>
+
+      <line x1="216" y1="280" x2="264" y2="280" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="284" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">5</text>
+      <text x="204" y="284" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">SCK</text>
+
+      <line x1="216" y1="304" x2="264" y2="304" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="92" y="308" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">6</text>
+      <text x="204" y="308" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">GND</text>
+
+      <!-- broches non connectées -->
+      <line x1="258" y1="178" x2="270" y2="190" stroke="#4f5d75" stroke-width="1.2"/>
+      <line x1="270" y1="178" x2="258" y2="190" stroke="#4f5d75" stroke-width="1.2"/>
+      <text x="280" y="188" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">NC</text>
+      <line x1="258" y1="250" x2="270" y2="262" stroke="#4f5d75" stroke-width="1.2"/>
+      <line x1="270" y1="250" x2="258" y2="262" stroke="#4f5d75" stroke-width="1.2"/>
+      <text x="280" y="260" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">NC</text>
+
+      <!-- masse de la console -->
+      <line x1="264" y1="304" x2="264" y2="336" stroke="#2d3142" stroke-width="1.2"/>
+      <use href="#gnd" x="264" y="336" stroke="#2d3142" stroke-width="1.2"/>
+
+      <!-- ================= Nets côté 5 V ================= -->
+      <!-- SOUT console -> U2 B1 -->
+      <path d="M 264,208 H 304 V 160 H 352" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+      <!-- SCK console -> U2 B2 -->
+      <path d="M 264,280 H 336 V 192 H 352" fill="none" stroke="#2d3142" stroke-width="1.2"/>
+      <!-- U3 B1 -> SIN console (croise SCK sans jonction) -->
+      <path d="M 352,432 H 320 V 232 H 264" fill="none" stroke="#eb6c36" stroke-width="1.6"/>
+
+      <!-- ================= U2 — 74LVC245 ================= -->
+      <text x="400" y="116" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.08em">U2</text>
+      <rect x="400" y="128" width="176" height="128" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+
+      <line x1="352" y1="160" x2="400" y2="160" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="376" y="152" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">18</text>
+      <text x="412" y="164" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">B1</text>
+
+      <line x1="352" y1="192" x2="400" y2="192" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="376" y="184" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">17</text>
+      <text x="412" y="196" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">B2</text>
+
+      <line x1="576" y1="160" x2="624" y2="160" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="600" y="152" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+      <text x="564" y="164" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">A1</text>
+
+      <line x1="576" y1="192" x2="624" y2="192" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="600" y="184" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">3</text>
+      <text x="564" y="196" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">A2</text>
+
+      <text x="488" y="212" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">74LVC245</text>
+      <text x="488" y="228" fill="#eb6c36" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">5 V → 3,3 V</text>
+      <text x="488" y="244" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">VCC = 3,3 V</text>
+
+      <!-- U2 alimentation -->
+      <line x1="520" y1="128" x2="520" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="508" y1="96" x2="532" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="520" y="88" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+3V3</text>
+      <text x="536" y="120" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">20</text>
+
+      <!-- U2 DIR / GND / OE à la masse -->
+      <line x1="440" y1="256" x2="440" y2="288" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="480" y1="256" x2="480" y2="288" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="520" y1="256" x2="520" y2="288" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="440" y1="288" x2="520" y2="288" stroke="#2d3142" stroke-width="1.2"/>
+      <circle cx="480" cy="288" r="3" fill="#2d3142"/>
+      <use href="#gnd" x="480" y="288" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="428" y="272" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">1 DIR</text>
+      <text x="484" y="272" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">10</text>
+      <text x="524" y="272" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">19 OE</text>
+
+      <!-- ================= U3 — 74AHCT245 ================= -->
+      <text x="400" y="388" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.08em">U3</text>
+      <rect x="400" y="400" width="176" height="128" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+
+      <line x1="352" y1="432" x2="400" y2="432" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="376" y="424" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">18</text>
+      <text x="412" y="436" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">B1</text>
+
+      <line x1="576" y1="432" x2="624" y2="432" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="600" y="424" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">2</text>
+      <text x="564" y="436" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="end">A1</text>
+
+      <text x="488" y="468" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">74AHCT245</text>
+      <text x="488" y="484" fill="#eb6c36" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">3,3 V → 5 V</text>
+      <text x="488" y="500" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">VCC = 5 V</text>
+
+      <!-- U3 DIR + VCC au +5 V -->
+      <line x1="440" y1="400" x2="440" y2="368" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="520" y1="400" x2="520" y2="368" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="440" y1="368" x2="520" y2="368" stroke="#2d3142" stroke-width="1.2"/>
+      <circle cx="480" cy="368" r="3" fill="#2d3142"/>
+      <line x1="480" y1="368" x2="480" y2="344" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="468" y1="344" x2="492" y2="344" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="480" y="336" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+5V</text>
+      <text x="428" y="392" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">1 DIR</text>
+      <text x="524" y="392" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">20</text>
+
+      <!-- U3 GND + OE à la masse -->
+      <line x1="440" y1="528" x2="440" y2="560" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="520" y1="528" x2="520" y2="560" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="440" y1="560" x2="520" y2="560" stroke="#2d3142" stroke-width="1.2"/>
+      <circle cx="480" cy="560" r="3" fill="#2d3142"/>
+      <use href="#gnd" x="480" y="560" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="428" y="544" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">10</text>
+      <text x="524" y="544" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">19 OE</text>
+
+      <!-- ================= Nets côté 3,3 V ================= -->
+      <line x1="624" y1="160" x2="752" y2="160" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="624" y1="192" x2="752" y2="192" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="624" y1="432" x2="752" y2="432" stroke="#eb6c36" stroke-width="1.6"/>
+
+      <!-- ================= Découplage ================= -->
+      <line x1="660" y1="56" x2="684" y2="56" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="672" y="48" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+3V3</text>
+      <line x1="672" y1="56" x2="672" y2="80" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="658" y1="80" x2="686" y2="80" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="658" y1="88" x2="686" y2="88" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="672" y1="88" x2="672" y2="104" stroke="#2d3142" stroke-width="1.2"/>
+      <use href="#gnd" x="672" y="104" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="672" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">C1 · 100 nF</text>
+
+      <line x1="756" y1="56" x2="780" y2="56" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="768" y="48" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+5V</text>
+      <line x1="768" y1="56" x2="768" y2="80" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="754" y1="80" x2="782" y2="80" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="754" y1="88" x2="782" y2="88" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="768" y1="88" x2="768" y2="104" stroke="#2d3142" stroke-width="1.2"/>
+      <use href="#gnd" x="768" y="104" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="768" y="144" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">C2 · 100 nF</text>
+
+      <!-- ================= U1 — ESP32 ================= -->
+      <text x="800" y="116" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" letter-spacing="0.08em">U1</text>
+      <rect x="800" y="128" width="192" height="352" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+
+      <line x1="752" y1="160" x2="800" y2="160" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="812" y="164" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">D19</text>
+      <text x="984" y="164" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">SOUT ENTRE</text>
+
+      <line x1="752" y1="192" x2="800" y2="192" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="812" y="196" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">D18</text>
+      <text x="984" y="196" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">SCK ENTRE</text>
+
+      <line x1="752" y1="432" x2="800" y2="432" stroke="#eb6c36" stroke-width="1.6"/>
+      <text x="812" y="436" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace">D21</text>
+      <text x="984" y="436" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end">SIN SORT</text>
+
+      <text x="896" y="296" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif" text-anchor="middle">ESP32-WROOM-32</text>
+      <text x="896" y="312" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">carte DevKit · 38 broches</text>
+      <text x="896" y="328" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">alimentée par son USB</text>
+
+      <line x1="848" y1="128" x2="848" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="836" y1="96" x2="860" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="848" y="88" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+3V3</text>
+      <text x="848" y="148" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">3V3</text>
+
+      <line x1="944" y1="128" x2="944" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <line x1="932" y1="96" x2="956" y2="96" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="944" y="88" fill="#2d3142" font-size="9" font-family="'Geist Mono', monospace" text-anchor="middle">+5V</text>
+      <text x="944" y="148" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="middle">VIN</text>
+
+      <line x1="896" y1="480" x2="896" y2="512" stroke="#2d3142" stroke-width="1.2"/>
+      <use href="#gnd" x="896" y="512" stroke="#2d3142" stroke-width="1.2"/>
+      <text x="908" y="500" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace">GND</text>
+
+      <!-- ================= Notes ================= -->
+      <line x1="48" y1="624" x2="736" y2="624" stroke="rgba(45,49,66,0.15)" stroke-width="0.8"/>
+      <text x="48" y="644" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">NOTES</text>
+      <text x="48" y="664" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">1 — U2 : DIR à la masse, donc sens B vers A. U3 : DIR au +5 V, donc sens A vers B.</text>
+      <text x="48" y="680" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">2 — OE des deux boîtiers à la masse : sorties actives en permanence.</text>
+      <text x="48" y="696" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">3 — C1 et C2 au plus près des broches VCC de U2 et U3.</text>
+      <text x="48" y="712" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">4 — Broche 1 du port link laissée NC : le module ne tire rien de la console.</text>
+      <text x="48" y="728" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">5 — Entrées inutilisées des deux 245 à relier à la masse : un CMOS flottant oscille.</text>
+      <text x="48" y="744" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">6 — Deux fils qui se croisent sans point de jonction ne sont pas connectés.</text>
+      <text x="48" y="760" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">7 — Un câble link standard croise déjà SIN et SOUT. Vérifier au multimètre.</text>
+      <text x="48" y="776" fill="#4f5d75" font-size="9" font-family="'Geist Mono', monospace">8 — SCK et SOUT entrent, SIN sort. 8192 Hz hors CGB, soit ~122 µs par bit.</text>
+
+      <!-- ================= Cartouche ================= -->
+      <rect x="784" y="648" width="288" height="144" fill="none" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+      <text x="796" y="668" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.14em">RELINK · INTERFACE MATÉRIELLE</text>
+      <text x="796" y="692" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">Adaptation de niveau</text>
+      <text x="796" y="708" fill="#2d3142" font-size="12" font-weight="600" font-family="'Geist', sans-serif">port link ↔ ESP32</text>
+      <line x1="784" y1="724" x2="1072" y2="724" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+      <text x="796" y="744" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">RÉV. A · PROPOSITION</text>
+      <text x="796" y="764" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">BROCHAGE : PAN DOCS, VIA</text>
+      <text x="796" y="778" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" letter-spacing="0.06em">DOCS/PROTOCOL/LINK-COUCHE-PHYSIQUE.MD</text>
+      <text x="1060" y="744" fill="#4f5d75" font-size="8" font-family="'Geist Mono', monospace" text-anchor="end" letter-spacing="0.06em">FEUILLE 1/1</text>
+    </svg>
+  </div>
+</body>
+</html>

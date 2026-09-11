@@ -1,8 +1,63 @@
 # tools/
 
-Outils de développement du dépôt. Rien ici ne fait partie d'un crate Rust ;
-ces scripts ne sont soumis à aucune des contraintes de `crates/protocol`
-(`no_std`, `unsafe_code = "forbid"`, etc.).
+Outils de développement du dépôt. Rien ici n'appartient au workspace Rust de
+`relink` : ni le script Python, ni le banc de mesure, qui vise Xtensa et exige
+une chaîne d'outils que la CI n'installe pas.
+
+## `banc-esp32/`
+
+Banc de mesure sur matériel : le lien Game Boy se décode-t-il par interruption
+sur `SCK` ? Se téléverse sur une carte ESP32 et n'exige qu'un strap entre
+`GPIO25` et `GPIO18` — tout est en 3,3 V, aucun composant, aucune console.
+
+Il est versionné pour que les chiffres de
+[`docs/firmware/latence-decodage.md`](../docs/firmware/latence-decodage.md)
+puissent être refaits, contestés, ou repris sur une autre carte. Une mesure
+dont le montage n'est pas rejouable n'est pas une source.
+
+### Prérequis
+
+La chaîne Xtensa d'esp-rs, que `rustup target add` ne suffit pas à installer :
+l'ESP32 original n'est pas RISC-V et son back-end vit dans un fork de LLVM.
+
+```bash
+cargo install espup espflash --locked
+espup install --targets esp32
+. ~/export-esp.sh          # à refaire dans chaque terminal
+```
+
+N'ajoutez pas `export-esp.sh` à votre profil : il exporte `LIBCLANG_PATH` vers
+le clang d'Espressif, ce qui détournerait tout autre projet utilisant
+`bindgen`.
+
+### Utilisation
+
+```bash
+cd tools/banc-esp32
+cargo build --release
+espflash flash --port /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/banc
+espflash monitor --port /dev/ttyUSB0
+```
+
+Sans le strap, le banc le dit au lieu de boucler en silence :
+
+```
+AUCUN front reçu. Strap GPIO25 → GPIO18 en place ?
+```
+
+Schéma du montage : [`docs/diagrams/banc-esp32.html`](../docs/diagrams/banc-esp32.html).
+
+### Lire la sortie
+
+Chaque ligne donne `min`, `moy`, `max`, **l'indice** du pire échantillon, et
+le compte de ceux qui dépassent 4 µs. Deux séries sont mesurées d'affilée par
+cadence, sans rien journaliser entre les deux.
+
+L'indice et la seconde série ne sont pas de la coquetterie : c'est ce qui a
+permis de distinguer une reprise à froid du cache — toujours à l'indice 0,
+toujours après une ligne de journal — d'une vraie gigue d'interruption. Un
+`max` élevé à l'indice 0 de la première série seulement se lit comme un
+artefact ; réparti, il se lit comme de l'interférence.
 
 ## `gen_species_table.py`
 

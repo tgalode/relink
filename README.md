@@ -38,6 +38,22 @@ viendront ensuite, chacun avec sa propre spécification.
 La conception est écrite :
 [docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md](docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md)
 
+## Le firmware n'a pas commencé, mais sa faisabilité se mesure
+
+Le port link n'expose aucune ligne de sélection, ce qui écarte le SPI esclave
+matériel de l'ESP32. Le repli — décoder sur interruption d'horloge — n'est
+pas une évidence : il se mesure.
+
+Il l'a été. [`tools/banc-esp32`](tools/banc-esp32) se téléverse sur une carte
+et n'exige qu'un strap entre deux broches ; les chiffres et leur montage sont
+dans [`docs/firmware/latence-decodage.md`](docs/firmware/latence-decodage.md).
+Le décodage par interruption tient à la cadence de la Gen 1, radio allumée,
+sans perdre un front. Il s'effondre à l'horloge rapide du Game Boy Color —
+ce qui fait de la cadence réelle de l'échange Gen 2, encore non sourcée, la
+question qui décide de la stratégie du firmware.
+
+Aucun choix matériel n'est pour autant arrêté dans ce dépôt.
+
 ## Générations couvertes
 
 Gen 1 (Rouge/Bleu/Jaune) et Gen 2 (Or/Argent/Cristal). Même couche physique,
