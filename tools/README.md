@@ -30,12 +30,20 @@ N'ajoutez pas `export-esp.sh` à votre profil : il exporte `LIBCLANG_PATH` vers
 le clang d'Espressif, ce qui détournerait tout autre projet utilisant
 `bindgen`.
 
+### Les trois binaires
+
+| Binaire | Ce qu'il fait | Straps |
+|---|---|---|
+| `banc` | Latence et gigue de l'ISR, en trois phases (repos, ordonnanceur, radio) | `D25→D18` |
+| `echange` | Couche bit : 1024 octets par sens, comparés à une suite connue | + `D26→D19`, `D21→D27` |
+| `echange-gen1` | Un échange Gen 1 complet à travers `Session`, comparé au même joué en mémoire | les trois |
+
 ### Utilisation
 
 ```bash
 cd tools/banc-esp32
-cargo build --release
-espflash flash --port /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/banc
+cargo build --release --bin echange-gen1
+espflash flash --port /dev/ttyUSB0 target/xtensa-esp32-none-elf/release/echange-gen1
 espflash monitor --port /dev/ttyUSB0
 ```
 

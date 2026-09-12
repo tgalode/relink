@@ -31,11 +31,17 @@
 //! Ce qui manque encore : les codecs de deuxième génération
 //! (Or/Argent/Cristal).
 //!
+//! Le module [`testing`] fournit une cartouche simulée. Il n'est pas derrière
+//! `#[cfg(test)]` parce que ses consommateurs vivent dans des crates séparés :
+//! les tests d'intégration de ce crate, et le banc de mesure `tools/banc-esp32`
+//! qui fait tourner la même cartouche sur du matériel.
+//!
 //! Conception : `docs/superpowers/specs/2026-08-27-relink-coeur-metier-design.md`.
 
 #![no_std]
 
 pub mod gen1;
 pub mod session;
+pub mod testing;
 pub mod text;
 pub mod time_capsule;
