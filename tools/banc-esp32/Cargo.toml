@@ -17,7 +17,14 @@ path = "./src/bin/main.rs"
 name = "echange"
 path = "./src/bin/echange.rs"
 
+[[bin]]
+name = "echange-gen1"
+path = "./src/bin/echange_gen1.rs"
+
 [dependencies]
+# Le cœur métier du dépôt, tel quel : c'est lui qu'on met à l'épreuve du fil.
+relink-protocol = { path = "../../crates/protocol" }
+
 esp-hal = { version = "~1.1.0", features = ["esp32", "log-04", "unstable"] }
 
 esp-rtos = { version = "0.3.0", features = [

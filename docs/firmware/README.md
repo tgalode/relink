@@ -22,12 +22,23 @@ le temps ni les tensions — il ne voit que des octets.
   laisse à chaque cadence. Cinq entrées confirmées, deux conséquences de
   conception, et une méthode invalide signalée en fin de document.
 
+- [`echange-sur-le-fil.md`](echange-sur-le-fil.md) — un échange Gen 1 complet
+  joué sur matériel, `Session` tournant dans l'ISR, comparé au même échange
+  joué en mémoire sur la même puce. Le flux sortant est identique. Le fil
+  révèle en revanche que la réponse de la machine à états sort avec un créneau
+  de retard — inhérent au registre à décalage, et pas encore vérifié sur
+  console.
+
 ## Le banc
 
 Les mesures viennent de [`tools/banc-esp32`](../../tools/banc-esp32), qui se
-téléverse sur une carte ESP32 et n'exige qu'un strap entre deux broches. Il
-est versionné pour que les chiffres puissent être refaits, contestés, ou
-repris sur une autre carte.
+téléverse sur une carte ESP32 et n'exige que des straps entre broches — un
+seul pour la latence, trois pour les échanges. Il est versionné pour que les
+chiffres puissent être refaits, contestés, ou repris sur une autre carte.
+
+Le binaire `echange-gen1` dépend de `relink-protocol` et fait tourner la
+machine à états du dépôt telle quelle. C'est voulu : un banc qui réimplémenterait
+le protocole ne testerait que lui-même.
 
 ## Ce qui reste ouvert
 
